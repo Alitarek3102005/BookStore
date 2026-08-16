@@ -146,4 +146,18 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .status(HttpStatus.CONFLICT)
                 .body(errorResponse);
     }
+    @ExceptionHandler(CategoryNotFoundException.class)
+    public ResponseEntity<?> handleCategoryNotFoundException(CategoryNotFoundException e, WebRequest request) {
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .message(e.getMessage())
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.NOT_FOUND.value())
+                .path(request.getDescription(false).replace("uri=", ""))
+                .validationErrors(null)
+                .error(HttpStatus.NOT_FOUND.getReasonPhrase())
+                .build();
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(errorResponse);
+    }
 }
