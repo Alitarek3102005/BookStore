@@ -1,14 +1,14 @@
 openapi: 3.0.3
 info:
   title: Bookstore REST API
-  description: API contract for the Spring Boot Bookstore System, matching the ERD (Customer, Orders, OrderItem, Book, Category).
+  description: API contract for the Spring Boot Bookstore System, matching the ERD (User, Orders, OrderItem, Book, Category).
   version: 1.0.0
 servers:
   - url: http://localhost:8080
     description: Local Development Server
 tags:
-  - name: Customers
-    description: Customer registration and management
+  - name: Users
+    description: User registration and management
   - name: Orders
     description: Order processing
   - name: OrderItems
@@ -18,37 +18,37 @@ tags:
   - name: Categories
     description: Category management for books
 paths:
-  /api/customers:
+  /api/users:
     get:
-      tags: [Customers]
-      summary: Get all customers
-      operationId: getAllCustomers
+      tags: [Users]
+      summary: Get all users
+      operationId: getAllUsers
       responses:
         '200':
-          description: A list of customers
+          description: A list of users
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/CustomerResponse'
+                  $ref: '#/components/schemas/UserResponse'
     post:
-      tags: [Customers]
-      summary: Register a new customer
-      operationId: createCustomer
+      tags: [Users]
+      summary: Register a new user
+      operationId: createUser
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CustomerRequest'
+              $ref: '#/components/schemas/UserRequest'
       responses:
         '201':
-          description: Customer registered
+          description: User registered
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CustomerResponse'
+                $ref: '#/components/schemas/UserResponse'
         '400':
           description: Validation error
           content:
@@ -56,78 +56,78 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /api/customers/{customerId}:
+  /api/users/{userId}:
     parameters:
-      - name: customerId
+      - name: userId
         in: path
         required: true
         schema:
           type: string
           format: uuid
     get:
-      tags: [Customers]
-      summary: Get a customer by ID
-      operationId: getCustomerById
+      tags: [Users]
+      summary: Get a user by ID
+      operationId: getUserById
       responses:
         '200':
-          description: Customer found
+          description: User found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CustomerResponse'
+                $ref: '#/components/schemas/UserResponse'
         '404':
-          description: Customer not found
+          description: User not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
     put:
-      tags: [Customers]
-      summary: Fully update a customer
-      operationId: updateCustomer
+      tags: [Users]
+      summary: Fully update a user
+      operationId: updateUser
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CustomerRequest'
+              $ref: '#/components/schemas/UserRequest'
       responses:
         '200':
-          description: Customer updated successfully
+          description: User updated successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CustomerResponse'
+                $ref: '#/components/schemas/UserResponse'
         '404':
-          description: Customer not found
+          description: User not found
     patch:
-      tags: [Customers]
-      summary: Partially update a customer
-      operationId: patchCustomer
+      tags: [Users]
+      summary: Partially update a user
+      operationId: patchUser
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CustomerPatchRequest'
+              $ref: '#/components/schemas/UserPatchRequest'
       responses:
         '200':
-          description: Customer patched successfully
+          description: User patched successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CustomerResponse'
+                $ref: '#/components/schemas/UserResponse'
         '404':
-          description: Customer not found
+          description: User not found
     delete:
-      tags: [Customers]
-      summary: Delete a customer
-      operationId: deleteCustomer
+      tags: [Users]
+      summary: Delete a user
+      operationId: deleteUser
       responses:
         '204':
-          description: Customer deleted successfully
+          description: User deleted successfully
         '404':
-          description: Customer not found
+          description: User not found
 
   /api/orders:
     get:
@@ -236,9 +236,9 @@ paths:
         '404':
           description: Order not found
 
-  /api/customers/{customerId}/orders:
+  /api/users/{userId}/orders:
     parameters:
-      - name: customerId
+      - name: userId
         in: path
         required: true
         schema:
@@ -246,11 +246,11 @@ paths:
           format: uuid
     get:
       tags: [Orders]
-      summary: Get all orders for a specific customer
-      operationId: getOrdersByCustomer
+      summary: Get all orders for a specific user
+      operationId: getOrdersByUser
       responses:
         '200':
-          description: A list of orders belonging to the customer
+          description: A list of orders belonging to the user
           content:
             application/json:
               schema:
@@ -258,7 +258,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/OrderResponse'
         '404':
-          description: Customer not found
+          description: User not found
 
   /api/order-items:
     get:
@@ -675,7 +675,7 @@ paths:
 
 components:
   schemas:
-    CustomerRequest:
+    UserRequest:
       type: object
       required: [username, email, password]
       properties:
@@ -692,13 +692,13 @@ components:
           type: string
         role:
           type: string
-          enum: [ADMIN, CUSTOMER]
+          enum: [ADMIN, AUTHOR, CUSTOMER]
           default: CUSTOMER
         enabled:
           type: boolean
           default: true
 
-    CustomerPatchRequest:
+    UserPatchRequest:
       type: object
       properties:
         username:
@@ -714,14 +714,14 @@ components:
           type: string
         role:
           type: string
-          enum: [ADMIN, CUSTOMER]
+          enum: [ADMIN, AUTHOR, CUSTOMER]
         enabled:
           type: boolean
 
-    CustomerResponse:
+    UserResponse:
       type: object
       properties:
-        customerId:
+        userId:
           type: string
           format: uuid
         username:
@@ -732,15 +732,15 @@ components:
           type: string
         role:
           type: string
-          enum: [ADMIN, CUSTOMER]
+          enum: [ADMIN, AUTHOR, CUSTOMER]
         enabled:
           type: boolean
 
     OrderRequest:
       type: object
-      required: [customerId, items]
+      required: [userId, items]
       properties:
-        customerId:
+        userId:
           type: string
           format: uuid
         items:
@@ -766,7 +766,7 @@ components:
       properties:
         status:
           type: string
-          enum: [PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED]
+          enum: [PENDING, COMPLETED, SHIPPED, CANCELED]
 
     OrderResponse:
       type: object
@@ -774,7 +774,7 @@ components:
         orderId:
           type: string
           format: uuid
-        customerId:
+        userId:
           type: string
           format: uuid
         orderDate:
@@ -785,7 +785,7 @@ components:
           format: double
         status:
           type: string
-          enum: [PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED]
+          enum: [PENDING, COMPLETED, SHIPPED, CANCELED]
         items:
           type: array
           items:
