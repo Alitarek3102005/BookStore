@@ -20,7 +20,7 @@ public class CategoryController implements CategoriesApi {
     private final CategoryService categoryService;
 
     @Override
-    public ResponseEntity<CategoryResponse> createCategory( CategoryRequest categoryRequest) {
+    public ResponseEntity<CategoryResponse> createCategory(CategoryRequest categoryRequest) {
         return new ResponseEntity<>(categoryService.save(categoryRequest), HttpStatus.CREATED);
     }
 

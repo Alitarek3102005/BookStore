@@ -949,6 +949,16 @@ components:
         description:
           type: string
 
+    ErrorItem:
+      type: object
+      properties:
+        code:
+          type: string
+          example: "E400_INVALID_FIELD"
+        message:
+          type: string
+          example: "must not be null"
+
     ErrorResponse:
       type: object
       properties:
@@ -958,13 +968,17 @@ components:
         status:
           type: integer
           format: int32
+          example: 400
         error:
           type: string
+          example: "Bad Request"
         message:
           type: string
+          example: "Validation Failed"
         path:
           type: string
-        validationErrors:
-          type: object
-          additionalProperties:
-            type: string
+          example: "/api/orders"
+        errorItems:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorItem'

@@ -1,13 +1,11 @@
 package com.example.bookstore.domain;
 
-import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -21,6 +19,6 @@ public class Category {
     @NotNull
     @Column(unique = true)
     private String name;
-    @Column(nullable = true)
+    @Column()
     private String description;
 }

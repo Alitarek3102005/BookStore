@@ -4,7 +4,7 @@ import com.example.bookstore.domain.Category;
 import com.example.bookstore.dto.CategoryPatchRequest;
 import com.example.bookstore.dto.CategoryRequest;
 import com.example.bookstore.dto.CategoryResponse;
-import com.example.bookstore.exception.customExceptions.CategoryNotFoundException;
+import com.example.bookstore.exception.CategoryNotFoundException;
 import com.example.bookstore.mapper.CategoryMapper;
 import com.example.bookstore.repository.CategoryRepository;
 import lombok.RequiredArgsConstructor;
