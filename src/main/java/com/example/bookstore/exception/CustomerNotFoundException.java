@@ -1,4 +1,4 @@
-package com.example.bookstore.exception.customExceptions;
+package com.example.bookstore.exception;
 
 public class CustomerNotFoundException extends RuntimeException {
     public CustomerNotFoundException() {}

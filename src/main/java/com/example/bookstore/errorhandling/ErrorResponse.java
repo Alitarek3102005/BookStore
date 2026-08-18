@@ -1,9 +1,10 @@
-package com.example.bookstore.exception;
+package com.example.bookstore.errorhandling;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Builder;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -14,5 +15,5 @@ public record ErrorResponse(
         String error,
         String message,
         String path,
-        Map<String, String> validationErrors
+        List<ErrorItem> errorItems
 ) {}
