@@ -6,6 +6,10 @@ info:
 servers:
   - url: http://localhost:8080
     description: Local Development Server
+
+security:
+  - bearerAuth: []
+
 tags:
   - name: Users
     description: User registration and management
@@ -36,6 +40,7 @@ paths:
       tags: [Users]
       summary: Register a new user
       operationId: createUser
+      security: []
       requestBody:
         required: true
         content:
@@ -390,6 +395,7 @@ paths:
       tags: [Books]
       summary: Get all books
       operationId: getAllBooks
+      security: []
       parameters:
         - name: title
           in: query
@@ -473,6 +479,7 @@ paths:
       tags: [Books]
       summary: Get a book by ID
       operationId: getBookById
+      security: []
       responses:
         '200':
           description: Book found
@@ -541,6 +548,7 @@ paths:
       tags: [Categories]
       summary: Get all categories
       operationId: getAllCategories
+      security: []
       responses:
         '200':
           description: A list of categories
@@ -586,6 +594,7 @@ paths:
       tags: [Categories]
       summary: Get a category by ID
       operationId: getCategoryById
+      security: []
       responses:
         '200':
           description: Category found
@@ -661,6 +670,7 @@ paths:
       tags: [Categories]
       summary: Get all books belonging to a category
       operationId: getBooksByCategory
+      security: []
       responses:
         '200':
           description: A list of books in the category
@@ -674,6 +684,11 @@ paths:
           description: Category not found
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
     UserRequest:
       type: object
@@ -692,7 +707,7 @@ components:
           type: string
         role:
           type: string
-          enum: [ADMIN, AUTHOR, CUSTOMER]
+          enum: [ADMIN, CUSTOMER]
           default: CUSTOMER
         enabled:
           type: boolean
@@ -714,7 +729,7 @@ components:
           type: string
         role:
           type: string
-          enum: [ADMIN, AUTHOR, CUSTOMER]
+          enum: [ADMIN, CUSTOMER]
         enabled:
           type: boolean
 
@@ -732,7 +747,7 @@ components:
           type: string
         role:
           type: string
-          enum: [ADMIN, AUTHOR, CUSTOMER]
+          enum: [ADMIN, CUSTOMER]
         enabled:
           type: boolean
 
