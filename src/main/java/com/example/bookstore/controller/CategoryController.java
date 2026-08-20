@@ -5,6 +5,7 @@ import com.example.bookstore.dto.BookResponse;
 import com.example.bookstore.dto.CategoryPatchRequest;
 import com.example.bookstore.dto.CategoryRequest;
 import com.example.bookstore.dto.CategoryResponse;
+import com.example.bookstore.service.BookService;
 import com.example.bookstore.service.CategoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -17,7 +18,9 @@ import java.util.UUID;
 @RestController
 @RequiredArgsConstructor
 public class CategoryController implements CategoriesApi {
+
     private final CategoryService categoryService;
+    private final BookService bookService;
 
     @Override
     public ResponseEntity<CategoryResponse> createCategory(CategoryRequest categoryRequest) {
@@ -39,9 +42,10 @@ public class CategoryController implements CategoriesApi {
     public ResponseEntity<CategoryResponse> getCategoryById(UUID categoryId) {
         return new ResponseEntity<>(categoryService.findById(categoryId), HttpStatus.OK);
     }
+
     @Override
     public ResponseEntity<List<BookResponse>> getBooksByCategory(UUID categoryId) {
-        return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
+        return new ResponseEntity<>(bookService.getBooksByCategory(categoryId), HttpStatus.OK);
     }
 
     @Override

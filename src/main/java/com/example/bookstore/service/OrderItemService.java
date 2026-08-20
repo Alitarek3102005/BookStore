@@ -1,5 +1,7 @@
 package com.example.bookstore.service;
 
+import com.example.bookstore.domain.Book;
+import com.example.bookstore.domain.Order;
 import com.example.bookstore.domain.OrderItem;
 import com.example.bookstore.dto.OrderItemRequest;
 import com.example.bookstore.dto.OrderItemResponse;
@@ -27,7 +29,6 @@ public class OrderItemService {
     private final BookRepository bookRepository;
     private final OrderItemMapper orderItemMapper;
 
-
     @Transactional(readOnly = true)
     public List<OrderItemResponse> findAll() {
         return orderItemRepository.findAll()
@@ -35,7 +36,6 @@ public class OrderItemService {
                 .map(orderItemMapper::toResponse)
                 .toList();
     }
-
 
     @Transactional(readOnly = true)
     public OrderItemResponse findById(UUID id) {
@@ -54,7 +54,8 @@ public class OrderItemService {
 
     @Transactional(readOnly = true)
     public List<OrderItemResponse> findByOrderId(UUID orderId) {
-        return orderItemRepository.findByOrderId(orderId)
+        // Updated to match the new repository method name
+        return orderItemRepository.findByOrder_Id(orderId)
                 .stream()
                 .map(orderItemMapper::toResponse)
                 .toList();
@@ -62,30 +63,30 @@ public class OrderItemService {
 
     @Transactional
     public OrderItemResponse save(OrderItemRequest request) {
-        if (!orderRepository.existsById(request.getOrderId())) {
-            throw new OrderNotFoundException("Order not found: " + request.getOrderId());
-        }
+        Order order = orderRepository.findById(request.getOrderId())
+                .orElseThrow(() -> new OrderNotFoundException("Order not found: " + request.getOrderId()));
 
-        if (!bookRepository.existsById(request.getBookId())) {
-            throw new BookNotFoundException("Book not found: " + request.getBookId());
-        }
+        Book book = bookRepository.findById(request.getBookId())
+                .orElseThrow(() -> new BookNotFoundException("Book not found: " + request.getBookId()));
 
-        if (orderItemRepository.existsByOrderIdAndBookId(request.getOrderId(), request.getBookId())) {
+        if (orderItemRepository.existsByOrder_IdAndBook_Id(request.getOrderId(), request.getBookId())) {
             throw new DuplicateResourceException(
                     "This book is already on the order - update its quantity instead");
         }
 
         OrderItem orderItem = orderItemMapper.toEntity(request);
+        orderItem.setOrder(order);
+        orderItem.setBook(book);
+
         return orderItemMapper.toResponse(orderItemRepository.save(orderItem));
     }
-
 
     @Transactional
     public OrderItemResponse update(UUID id, OrderItemRequest request) {
         OrderItem existing = getOrThrow(id);
 
-        if (!existing.getOrderId().equals(request.getOrderId())
-                || !existing.getBookId().equals(request.getBookId())) {
+        if (!existing.getOrder().getId().equals(request.getOrderId())
+                || !existing.getBook().getId().equals(request.getBookId())) {
             throw new InvalidOrderException(
                     "An order item cannot be moved to a different order or book");
         }
