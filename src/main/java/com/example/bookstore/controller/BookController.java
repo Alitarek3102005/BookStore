@@ -16,10 +16,12 @@ import java.util.UUID;
 @RestController
 @RequiredArgsConstructor
 public class BookController implements BooksApi {
+
     private final BookService bookService;
+
     @Override
     public ResponseEntity<BookResponse> createBook(BookRequest bookRequest) {
-        return new ResponseEntity<>(bookService.addBook(bookRequest),HttpStatus.CREATED);
+        return new ResponseEntity<>(bookService.addBook(bookRequest), HttpStatus.CREATED);
     }
 
     @Override
@@ -30,23 +32,21 @@ public class BookController implements BooksApi {
 
     @Override
     public ResponseEntity<List<BookResponse>> getAllBooks(String title, String author, UUID categoryId, Integer page, Integer size, String sort) {
-        return new ResponseEntity<>(bookService.getAll(), HttpStatus.OK);
+        return new ResponseEntity<>(bookService.searchBooks(title, author, categoryId, page, size, sort), HttpStatus.OK);
     }
-
 
     @Override
     public ResponseEntity<BookResponse> getBookById(UUID bookId) {
-        return new ResponseEntity<>(bookService.getById(bookId),HttpStatus.OK);
+        return new ResponseEntity<>(bookService.getById(bookId), HttpStatus.OK);
     }
 
     @Override
     public ResponseEntity<BookResponse> patchBook(UUID bookId, BookPatchRequest bookPatchRequest) {
-        return BooksApi.super.patchBook(bookId, bookPatchRequest);
+        return new ResponseEntity<>(bookService.patchBook(bookId, bookPatchRequest), HttpStatus.OK);
     }
 
     @Override
     public ResponseEntity<BookResponse> updateBook(UUID bookId, BookRequest bookRequest) {
-
-        return new ResponseEntity<>(bookService.updateBook(bookId,bookRequest),HttpStatus.OK);
+        return new ResponseEntity<>(bookService.updateBook(bookId, bookRequest), HttpStatus.OK);
     }
 }

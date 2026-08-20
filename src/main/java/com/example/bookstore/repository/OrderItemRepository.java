@@ -10,8 +10,8 @@ import java.util.UUID;
 @Repository
 public interface OrderItemRepository extends JpaRepository<OrderItem, UUID> {
 
-    List<OrderItem> findByOrderId(UUID orderId);
 
-    boolean existsByOrderIdAndBookId(UUID orderId, UUID bookId);
+    List<OrderItem> findByOrder_Id(UUID orderId);
 
+    boolean existsByOrder_IdAndBook_Id(UUID orderId, UUID bookId);
 }

@@ -1,19 +1,15 @@
 package com.example.bookstore.domain;
 
-
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
 @Entity
+@Table(name = "order_items")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -23,21 +19,17 @@ public class OrderItem {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name= "OrderId", nullable = false)
-    @NotNull
-    private UUID orderId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "orderId", nullable = false)
+    private Order order;
 
-    @Column(name = "BookId",nullable = false)
-    @NotNull
-    private UUID bookId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "bookId", nullable = false)
+    private Book book;
 
-    @Column(name = "Quantity", nullable = false)
-    @Min(1)
-    @NotNull
+    @Column(nullable = false)
     private Integer quantity;
 
     @Column(name = "unit_price", nullable = false, precision = 19, scale = 2)
-    @NotNull
     private BigDecimal unitPrice;
-
 }

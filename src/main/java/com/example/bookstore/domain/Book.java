@@ -9,7 +9,7 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 @Entity
-@Table(name = "Books")
+@Table(name = "books")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -17,21 +17,25 @@ public class Book {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
     @Column(nullable = false)
     private String title;
 
     @Column(nullable = false)
     private String author;
 
-    @Column(nullable = false, unique = true)
-    private String isbn;
-
-    @Column(nullable = false)
-    private String genre;
-
     @Column(nullable = false)
     private BigDecimal price;
 
     @Column(nullable = false)
-    private Integer stockQuantity;
+    private Integer quantity;
+
+    @Column(length = 1000)
+    private String description;
+
+    private String imgURL;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "categoryId")
+    private Category category;
 }
