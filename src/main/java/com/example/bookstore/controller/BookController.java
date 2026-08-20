@@ -15,7 +15,7 @@ import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
-public class BookController implements com.example.bookstore.api.BooksApi {
+public class BookController implements BooksApi {
     private final BookService bookService;
     @Override
     public ResponseEntity<BookResponse> createBook(BookRequest bookRequest) {
@@ -29,9 +29,10 @@ public class BookController implements com.example.bookstore.api.BooksApi {
     }
 
     @Override
-    public ResponseEntity<List<BookResponse>> getAllBooks() {
-        return new ResponseEntity<>(bookService.getAll(),HttpStatus.OK);
+    public ResponseEntity<List<BookResponse>> getAllBooks(String title, String author, UUID categoryId, Integer page, Integer size, String sort) {
+        return new ResponseEntity<>(bookService.getAll(), HttpStatus.OK);
     }
+
 
     @Override
     public ResponseEntity<BookResponse> getBookById(UUID bookId) {

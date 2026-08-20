@@ -1,6 +1,8 @@
 package com.example.bookstore.service;
 
 import com.example.bookstore.domain.Book;
+import com.example.bookstore.dto.BookRequest;
+import com.example.bookstore.dto.BookResponse;
 import com.example.bookstore.mapper.BookMapper;
 import com.example.bookstore.repository.BookRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,12 +18,12 @@ public class BookService {
     private final BookRepository bookRepository;
     private final BookMapper bookMapper;
 
-    public com.example.bookstore.dto.BookResponse addBook(com.example.bookstore.dto.BookRequest bookDto) {
+    public BookResponse addBook(BookRequest bookDto) {
         Book book = bookMapper.toEntity(bookDto);
         return bookMapper.toResponse(bookRepository.save(book));
 
     }
-    public com.example.bookstore.dto.BookResponse updateBook(UUID id , com.example.bookstore.dto.BookRequest bookDto){
+    public BookResponse updateBook(UUID id ,BookRequest bookDto){
         Book book = bookRepository.findById(id).orElseThrow();
         Book entity = bookMapper.toEntity(bookDto);
         book=entity;
@@ -39,7 +41,7 @@ public class BookService {
         }
         return  bookDtos;
     }
-    public com.example.bookstore.dto.BookResponse getById(UUID id){
+    public BookResponse getById(UUID id){
         return bookMapper.toResponse( bookRepository.findById(id).orElseThrow(()-> new RuntimeException()));
     }
 
