@@ -12,11 +12,13 @@ public interface UserMapper {
     UserResponse toResponse(User user);
 
     @Mapping(target = "userId", ignore = true)
-    @Mapping(target = "password", ignore = true)
+//    @Mapping(target = "password", ignore = true)
+    @Mapping(target = "orders", ignore = true)
     User toEntity(UserRequest request);
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "userId", ignore = true)
-    @Mapping(target = "password", ignore = true)
+//    @Mapping(target = "password", ignore = true)
+    @Mapping(target = "orders", ignore = true)
     void patchEntityFromRequest(UserPatchRequest request, @MappingTarget User user);
 }

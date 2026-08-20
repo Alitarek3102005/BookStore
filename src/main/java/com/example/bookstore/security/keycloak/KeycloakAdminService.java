@@ -39,13 +39,14 @@ public class KeycloakAdminService {
                 .build();
     }
 
-
     public UUID createUser(String username, String email, String password, String realmRole) {
         UserRepresentation kcUser = new UserRepresentation();
         kcUser.setUsername(username);
+        kcUser.setFirstName(username);
+        kcUser.setLastName(username);
         kcUser.setEmail(email);
         kcUser.setEnabled(true);
-        kcUser.setEmailVerified(false);
+        kcUser.setEmailVerified(true);
 
         CredentialRepresentation credential = new CredentialRepresentation();
         credential.setType(CredentialRepresentation.PASSWORD);
@@ -67,7 +68,20 @@ public class KeycloakAdminService {
             String location = response.getLocation().getPath();
             String keycloakUserId = location.substring(location.lastIndexOf('/') + 1);
 
-            assignRealmRole(realmResource, keycloakUserId, realmRole);
+            try {
+                assignRealmRole(realmResource, keycloakUserId, realmRole);
+            } catch (RuntimeException roleAssignmentFailure) {
+                try {
+                    realmResource.users().get(keycloakUserId).remove();
+                } catch (RuntimeException cleanupFailure) {
+                    roleAssignmentFailure.addSuppressed(cleanupFailure);
+                }
+                throw new KeycloakUserCreationException(
+                        "Failed to assign role '" + realmRole + "' after creating Keycloak user - "
+                                + "rolled back user creation. Check the admin client's service account has "
+                                + "both 'manage-users' AND 'view-realm' under realm-management.",
+                        roleAssignmentFailure);
+            }
 
             return UUID.fromString(keycloakUserId);
         } finally {
@@ -79,7 +93,6 @@ public class KeycloakAdminService {
         RoleRepresentation role = realmResource.roles().get(roleName).toRepresentation();
         realmResource.users().get(keycloakUserId).roles().realmLevel().add(List.of(role));
     }
-
 
     public void deleteUser(UUID keycloakUserId) {
         keycloakAdminClient.realm(realm).users().get(keycloakUserId.toString()).remove();

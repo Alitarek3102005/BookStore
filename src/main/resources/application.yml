@@ -3,21 +3,22 @@ spring:
     name: BookStore
 
   datasource:
-    url: jdbc:h2:mem:testdb
-    driverClassName: org.h2.Driver
-    username: sa
-    password: ""
-
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
+    url: jdbc:postgresql://localhost:5433/bookstore_db
+    driver-class-name: org.postgresql.Driver
+    username: admin
+    password: admin_password
 
   jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: update
     show-sql: true
+
+  flyway:
+    enabled: false
+    baseline-on-migrate: true
+    baseline-version: "0"
+    locations: classpath:db/migration
 
   security:
     oauth2:
@@ -25,10 +26,9 @@ spring:
         jwt:
           issuer-uri: http://localhost:8081/realms/bookstore-realm
 
-
 keycloak:
   admin:
     server-url: http://localhost:8081
     realm: bookstore-realm
     client-id: bookstore-admin-client
-    client-secret: otLvEu37TaFCbJIqP3FzzJ7i8ZMcg7L8
+    client-secret: ZIqNbC4yhf6lYGanV7TFHBcBfo7OYUM1
