@@ -13,6 +13,7 @@ import com.example.bookstore.security.keycloak.KeycloakAdminService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +27,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final KeycloakAdminService keycloakAdminService;
+    private final PasswordEncoder passwordEncoder;
 
     @Transactional(readOnly = true)
     public List<UserResponse> findAll() {
@@ -50,12 +52,16 @@ public class UserService {
             throw new DuplicateResourceException("Username is already taken.");
         }
         Role registrationRole = Role.CUSTOMER;
+
         UUID keycloakUserId = keycloakAdminService.createUser(
                 request.getUsername(), request.getEmail(), request.getPassword(), registrationRole.name());
         try {
             User userEntity = userMapper.toEntity(request);
             userEntity.setUserId(keycloakUserId);
             userEntity.setRole(registrationRole);
+
+            userEntity.setPassword(passwordEncoder.encode(request.getPassword()));
+
             return userMapper.toResponse(userRepository.saveAndFlush(userEntity));
         } catch (RuntimeException ex) {
             keycloakAdminService.deleteUser(keycloakUserId);
@@ -73,6 +79,10 @@ public class UserService {
 
         User userEntity = userMapper.toEntity(request);
         userEntity.setUserId(id);
+
+        if (request.getPassword() != null && !request.getPassword().isEmpty()) {
+            userEntity.setPassword(passwordEncoder.encode(request.getPassword()));
+        }
 
         if (!isAdmin()) {
             userEntity.setRole(previousRole);

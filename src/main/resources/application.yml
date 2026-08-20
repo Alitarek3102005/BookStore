@@ -18,7 +18,10 @@ spring:
     enabled: false
     baseline-on-migrate: true
     baseline-version: "0"
-    locations: classpath:db/migration
+    locations: classpath:migrations
+    url: jdbc:postgresql://localhost:5433/bookstore_db
+    user: admin
+    password: admin_password
 
   security:
     oauth2:
