@@ -27,6 +27,21 @@ services:
       - keycloak_data:/opt/keycloak/data
     restart: unless-stopped
 
+  bookstore-api:
+    image: ghcr.io/alitarek3102005/bookstore:latest
+    container_name: bookstore-backend
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - keycloak
+    environment:
+
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/bookstore_db
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://keycloak:8080/realms/bookstore-realm
+      KEYCLOAK_ADMIN_SERVER_URL: http://keycloak:8080
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   keycloak_data:
