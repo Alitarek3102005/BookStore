@@ -73,21 +73,28 @@ public class UserService {
     public UserResponse update(UserRequest request, UUID id) {
         User existing = userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException("User not found: " + id));
-
+        if (!existing.getEmail().equals(request.getEmail()) && userRepository.existsByEmail(request.getEmail())) {
+            throw new DuplicateResourceException("Email is already registered.");
+        }
+        if (!existing.getUsername().equals(request.getUsername()) && userRepository.existsByUsername(request.getUsername())) {
+            throw new DuplicateResourceException("Username is already taken.");
+        }
         Role previousRole = existing.getRole();
         boolean previousEnabled = existing.isEnabled();
-
+        String previousPassword = existing.getPassword();
         User userEntity = userMapper.toEntity(request);
         userEntity.setUserId(id);
-
         if (request.getPassword() != null && !request.getPassword().isEmpty()) {
             userEntity.setPassword(passwordEncoder.encode(request.getPassword()));
+            keycloakAdminService.updatePassword(id, request.getPassword());
+        } else {
+            userEntity.setPassword(previousPassword);
         }
-
         if (!isAdmin()) {
             userEntity.setRole(previousRole);
             userEntity.setEnabled(previousEnabled);
         }
+        keycloakAdminService.updateUser(id, request.getUsername(), request.getEmail());
 
         return userMapper.toResponse(userRepository.save(userEntity));
     }
@@ -101,6 +108,25 @@ public class UserService {
         boolean previousEnabled = userEntity.isEnabled();
 
         userMapper.patchEntityFromRequest(userPatchRequest, userEntity);
+
+        userRepository.findByEmail(userEntity.getEmail()).ifPresent(foundUser -> {
+            if (!foundUser.getUserId().equals(id)) {
+                throw new DuplicateResourceException("Email is already registered.");
+            }
+        });
+
+        userRepository.findByUsername(userEntity.getUsername()).ifPresent(foundUser -> {
+            if (!foundUser.getUserId().equals(id)) {
+                throw new DuplicateResourceException("Username is already taken.");
+            }
+        });
+
+        keycloakAdminService.updateUser(id, userEntity.getUsername(), userEntity.getEmail());
+
+        if (userPatchRequest.getPassword() != null && !userPatchRequest.getPassword().isEmpty()) {
+            userEntity.setPassword(passwordEncoder.encode(userPatchRequest.getPassword()));
+            keycloakAdminService.updatePassword(id, userPatchRequest.getPassword());
+        }
 
         if (!isAdmin()) {
             userEntity.setRole(previousRole);
