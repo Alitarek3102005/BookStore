@@ -9,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -23,7 +25,6 @@ public class OrderController implements OrdersApi {
     @Override
     @PreAuthorize("hasRole('ADMIN') or @ownershipSecurity.isSelf(authentication, #orderRequest.userId)")
     public ResponseEntity<OrderResponse> createOrder(OrderRequest orderRequest) {
-        // Prevents a user from passing someone else's ID in the JSON body
         return new ResponseEntity<>(orderService.createOrder(orderRequest), HttpStatus.CREATED);
     }
 
@@ -56,6 +57,14 @@ public class OrderController implements OrdersApi {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<OrderResponse> patchOrder(UUID orderId, OrderPatchRequest orderPatchRequest) {
         return new ResponseEntity<>(orderService.patch(orderId, orderPatchRequest), HttpStatus.OK);
+    }
+
+    @Override
+    public ResponseEntity<OrderResponse> payOrder(UUID orderId) {
+        Jwt jwt = (Jwt) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+        OrderResponse response = orderService.payOrder(orderId, jwt);
+        return ResponseEntity.ok(response);
     }
 
     @Override

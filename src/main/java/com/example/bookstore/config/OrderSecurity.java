@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 import java.util.Optional;
 import java.util.UUID;
 
-@Component("orderSecurity")
+@Component("ownershipSecurity")
 @RequiredArgsConstructor
 public class OrderSecurity {
 
@@ -31,6 +31,19 @@ public class OrderSecurity {
                 Order order = orderOptional.get();
                 return order.getCustomer().getUserId().toString().equals(tokenUserId);
             }
+        }
+
+        return false;
+    }
+    public boolean isSelf(Authentication authentication, UUID userId) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return false;
+        }
+
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof Jwt jwt) {
+            String tokenUserId = jwt.getSubject();
+            return tokenUserId.equals(userId.toString());
         }
 
         return false;

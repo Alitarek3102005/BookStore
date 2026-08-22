@@ -97,4 +97,20 @@ public class KeycloakAdminService {
     public void deleteUser(UUID keycloakUserId) {
         keycloakAdminClient.realm(realm).users().get(keycloakUserId.toString()).remove();
     }
+    public void updateUser(UUID userId, String newUsername, String newEmail) {
+        UserRepresentation user = new UserRepresentation();
+        user.setUsername(newUsername);
+        user.setEmail(newEmail);
+
+        keycloakAdminClient.realm(realm).users().get(userId.toString()).update(user);
+    }
+
+    public void updatePassword(UUID userId, String newPassword) {
+        CredentialRepresentation credential = new CredentialRepresentation();
+        credential.setTemporary(false);
+        credential.setType(CredentialRepresentation.PASSWORD);
+        credential.setValue(newPassword);
+
+        keycloakAdminClient.realm(realm).users().get(userId.toString()).resetPassword(credential);
+    }
 }
