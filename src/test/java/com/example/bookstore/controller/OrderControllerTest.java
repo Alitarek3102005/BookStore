@@ -1,12 +1,12 @@
 package com.example.bookstore.controller;
 
-import com.example.bookstore.domain.OrderStatus;
 import com.example.bookstore.dto.OrderItemLine;
 import com.example.bookstore.dto.OrderPatchRequest;
 import com.example.bookstore.dto.OrderRequest;
 import com.example.bookstore.dto.OrderResponse;
 import com.example.bookstore.service.OrderService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +16,10 @@ import org.springframework.boot.security.oauth2.server.resource.autoconfigure.OA
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -25,6 +29,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -75,6 +80,11 @@ class OrderControllerTest {
         orderResponse = new OrderResponse();
         orderResponse.setOrderId(orderId);
         orderResponse.setTotalAmount(50.0);
+    }
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
     }
 
     @Test
@@ -155,5 +165,26 @@ class OrderControllerTest {
                 .andExpect(status().isNoContent());
 
         verify(orderService).delete(orderId);
+    }
+
+    @Test
+    void payOrder_ShouldReturn200Ok() throws Exception {
+        Jwt mockJwt = mock(Jwt.class);
+        Authentication mockAuthentication = mock(Authentication.class);
+        SecurityContext mockSecurityContext = mock(SecurityContext.class);
+
+        when(mockSecurityContext.getAuthentication()).thenReturn(mockAuthentication);
+        when(mockAuthentication.getPrincipal()).thenReturn(mockJwt);
+        SecurityContextHolder.setContext(mockSecurityContext);
+
+        when(orderService.payOrder(eq(orderId), eq(mockJwt))).thenReturn(orderResponse);
+
+        mockMvc.perform(post("/api/orders/{orderId}/pay", orderId)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.orderId").value(orderId.toString()))
+                .andExpect(jsonPath("$.totalAmount").value(50.0));
+
+        verify(orderService).payOrder(eq(orderId), eq(mockJwt));
     }
 }
