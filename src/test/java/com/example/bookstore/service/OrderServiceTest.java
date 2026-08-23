@@ -6,7 +6,6 @@ import com.example.bookstore.domain.OrderItem;
 import com.example.bookstore.dto.OrderItemLine;
 import com.example.bookstore.domain.OrderStatus;
 import com.example.bookstore.domain.User;
-import com.example.bookstore.dto.OrderItemRequest;
 import com.example.bookstore.dto.OrderPatchRequest;
 import com.example.bookstore.dto.OrderRequest;
 import com.example.bookstore.dto.OrderResponse;
@@ -25,6 +24,7 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.math.BigDecimal;
 import java.util.Collections;
@@ -47,6 +47,9 @@ class OrderServiceTest {
     private BookRepository bookRepository;
     @Mock
     private OrderMapper orderMapper;
+
+    @Mock
+    private Jwt jwt;
 
     @InjectMocks
     private OrderService orderService;
@@ -127,22 +130,33 @@ class OrderServiceTest {
 
     @Test
     void getOrdersByUser_ShouldReturnList_WhenUserExists() {
-        when(userRepository.existsById(userId)).thenReturn(true);
-        when(orderRepository.findByCustomer_UserId(userId)).thenReturn(List.of(orderEntity));
-        when(orderMapper.toResponse(orderEntity)).thenReturn(orderResponse);
+        UUID userId = UUID.randomUUID();
+        Order mockOrder = new Order();
+        OrderResponse mockResponse = new OrderResponse();
+
+        when(orderRepository.findByCustomer_UserId(userId)).thenReturn(List.of(mockOrder));
+        when(orderMapper.toResponse(mockOrder)).thenReturn(mockResponse);
 
         List<OrderResponse> result = orderService.getOrdersByUser(userId);
 
+        assertNotNull(result);
         assertEquals(1, result.size());
         verify(orderRepository).findByCustomer_UserId(userId);
     }
 
     @Test
-    void getOrdersByUser_ShouldThrowException_WhenUserNotFound() {
-        when(userRepository.existsById(userId)).thenReturn(false);
+    void getOrdersByUser_ShouldReturnEmptyList_WhenNoOrdersFound() {
+        UUID userId = UUID.randomUUID();
 
-        assertThrows(UserNotFoundException.class, () -> orderService.getOrdersByUser(userId));
-        verify(orderRepository, never()).findByCustomer_UserId(any());
+        when(orderRepository.findByCustomer_UserId(userId)).thenReturn(List.of());
+
+        List<OrderResponse> result = orderService.getOrdersByUser(userId);
+
+        assertNotNull(result);
+        assertTrue(result.isEmpty(), "The result should be an empty list");
+        verify(orderRepository).findByCustomer_UserId(userId);
+
+        verify(orderMapper, never()).toResponse(any());
     }
 
     @Test
@@ -228,5 +242,73 @@ class OrderServiceTest {
 
         assertThrows(OrderNotFoundException.class, () -> orderService.delete(orderId));
         verify(orderRepository, never()).deleteById(any());
+    }
+
+
+    @Test
+    void payOrder_ShouldSucceed_WhenUserIsOwnerAndOrderIsPending() {
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(orderEntity));
+        when(jwt.getSubject()).thenReturn(userId.toString());
+        when(jwt.getClaimAsStringList("realm_access")).thenReturn(null);
+
+        when(orderRepository.save(any(Order.class))).thenReturn(orderEntity);
+        when(orderMapper.toResponse(orderEntity)).thenReturn(orderResponse);
+
+        OrderResponse result = orderService.payOrder(orderId, jwt);
+
+        assertNotNull(result);
+        assertEquals(OrderStatus.SHIPPED, orderEntity.getStatus());
+        verify(orderRepository).save(orderEntity);
+    }
+
+    @Test
+    void payOrder_ShouldSucceed_WhenUserIsAdminAndOrderIsPending() {
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(orderEntity));
+
+        when(jwt.getSubject()).thenReturn(UUID.randomUUID().toString());
+        when(jwt.getClaimAsStringList("realm_access")).thenReturn(List.of("ADMIN"));
+
+        when(orderRepository.save(any(Order.class))).thenReturn(orderEntity);
+        when(orderMapper.toResponse(orderEntity)).thenReturn(orderResponse);
+
+        OrderResponse result = orderService.payOrder(orderId, jwt);
+
+        assertNotNull(result);
+        assertEquals(OrderStatus.SHIPPED, orderEntity.getStatus());
+        verify(orderRepository).save(orderEntity);
+    }
+
+    @Test
+    void payOrder_ShouldThrowException_WhenOrderNotFound() {
+        when(orderRepository.findById(orderId)).thenReturn(Optional.empty());
+
+        assertThrows(OrderNotFoundException.class, () -> orderService.payOrder(orderId, jwt));
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void payOrder_ShouldThrowException_WhenUserIsNotOwnerOrAdmin() {
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(orderEntity));
+
+        // Subject is someone else
+        when(jwt.getSubject()).thenReturn(UUID.randomUUID().toString());
+        when(jwt.getClaimAsStringList("realm_access")).thenReturn(null);
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> orderService.payOrder(orderId, jwt));
+        assertEquals("Unauthorized: You can only pay for your own orders.", exception.getMessage());
+        verify(orderRepository, never()).save(any());
+    }
+
+    @Test
+    void payOrder_ShouldThrowException_WhenOrderIsNotPending() {
+        orderEntity.setStatus(OrderStatus.SHIPPED);
+
+        when(orderRepository.findById(orderId)).thenReturn(Optional.of(orderEntity));
+        when(jwt.getSubject()).thenReturn(userId.toString());
+        when(jwt.getClaimAsStringList("realm_access")).thenReturn(null);
+
+        RuntimeException exception = assertThrows(RuntimeException.class, () -> orderService.payOrder(orderId, jwt));
+        assertEquals("Order cannot be paid unless it is pending.", exception.getMessage());
+        verify(orderRepository, never()).save(any());
     }
 }
