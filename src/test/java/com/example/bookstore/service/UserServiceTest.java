@@ -8,6 +8,7 @@ import com.example.bookstore.dto.UserResponse;
 import com.example.bookstore.exception.DuplicateResourceException;
 import com.example.bookstore.exception.UserNotFoundException;
 import com.example.bookstore.mapper.UserMapper;
+import com.example.bookstore.repository.CartRepository;
 import com.example.bookstore.repository.UserRepository;
 import com.example.bookstore.security.keycloak.KeycloakAdminService;
 import org.junit.jupiter.api.AfterEach;
@@ -17,6 +18,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -41,6 +46,8 @@ class UserServiceTest {
     private UserRepository userRepository;
     @Mock
     private UserMapper userMapper;
+    @Mock
+    private CartRepository cartRepository;
     @Mock
     private KeycloakAdminService keycloakAdminService;
     @Mock
@@ -92,14 +99,19 @@ class UserServiceTest {
     }
 
     @Test
-    void findAll_ShouldReturnListOfUserResponses() {
-        when(userRepository.findAll()).thenReturn(List.of(userEntity));
+    void searchUsers_ShouldReturnPagedUserResponses() {
+        Pageable pageable = PageRequest.of(0, 20);
+        Page<User> userPage = new PageImpl<>(List.of(userEntity), pageable, 1);
+
+        when(userRepository.searchUsers(eq("test"), eq(Role.CUSTOMER), eq(true), any(Pageable.class)))
+                .thenReturn(userPage);
         when(userMapper.toResponse(userEntity)).thenReturn(userResponse);
 
-        List<UserResponse> result = userService.findAll();
+        Page<UserResponse> result = userService.searchUsers("test", Role.CUSTOMER, true, 0, 20, "username,asc");
 
-        assertEquals(1, result.size());
-        assertEquals(userId, result.get(0).getUserId());
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        assertEquals(userId, result.getContent().get(0).getUserId());
     }
 
     @Test
@@ -166,7 +178,6 @@ class UserServiceTest {
         assertThrows(RuntimeException.class, () -> userService.save(userRequest));
         verify(keycloakAdminService, times(1)).deleteUser(userId);
     }
-
 
     @Test
     void update_ShouldRevertRole_WhenUserIsNotAdmin() {

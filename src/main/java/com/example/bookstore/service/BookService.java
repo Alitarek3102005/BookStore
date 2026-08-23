@@ -8,8 +8,7 @@ import com.example.bookstore.dto.BookResponse;
 import com.example.bookstore.exception.BookNotFoundException;
 import com.example.bookstore.exception.CategoryNotFoundException;
 import com.example.bookstore.mapper.BookMapper;
-import com.example.bookstore.repository.BookRepository;
-import com.example.bookstore.repository.CategoryRepository;
+import com.example.bookstore.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -27,7 +26,10 @@ public class BookService {
 
     private final BookRepository bookRepository;
     private final CategoryRepository categoryRepository;
+    private final OrderItemRepository orderItemRepository;
+    private final CartItemRepository cartItemRepository;
     private final BookMapper bookMapper;
+    private final ReviewRepository reviewRepository;
 
     @Transactional(readOnly = true)
     public List<BookResponse> searchBooks(String title, String author, UUID categoryId, Integer page, Integer size, String sort) {
@@ -65,10 +67,8 @@ public class BookService {
     public BookResponse addBook(BookRequest bookDto) {
         Category category = categoryRepository.findById(bookDto.getCategoryId())
                 .orElseThrow(() -> new CategoryNotFoundException("Category not found: " + bookDto.getCategoryId()));
-
         Book book = bookMapper.toEntity(bookDto);
         book.setCategory(category);
-
         return bookMapper.toResponse(bookRepository.save(book));
     }
 
@@ -76,14 +76,11 @@ public class BookService {
     public BookResponse updateBook(UUID id, BookRequest bookDto) {
         Book existingBook = bookRepository.findById(id)
                 .orElseThrow(() -> new BookNotFoundException("Book not found: " + id));
-
         Category category = categoryRepository.findById(bookDto.getCategoryId())
                 .orElseThrow(() -> new CategoryNotFoundException("Category not found: " + bookDto.getCategoryId()));
-
         Book updatedBook = bookMapper.toEntity(bookDto);
         updatedBook.setId(existingBook.getId());
         updatedBook.setCategory(category);
-
         return bookMapper.toResponse(bookRepository.save(updatedBook));
     }
 
@@ -91,23 +88,26 @@ public class BookService {
     public BookResponse patchBook(UUID id, BookPatchRequest bookDto) {
         Book existingBook = bookRepository.findById(id)
                 .orElseThrow(() -> new BookNotFoundException("Book not found: " + id));
-
         if (bookDto.getCategoryId() != null) {
             Category category = categoryRepository.findById(bookDto.getCategoryId())
                     .orElseThrow(() -> new CategoryNotFoundException("Category not found: " + bookDto.getCategoryId()));
             existingBook.setCategory(category);
         }
-
         bookMapper.patchEntityFromRequest(bookDto, existingBook);
 
         return bookMapper.toResponse(bookRepository.save(existingBook));
     }
-
     @Transactional
     public void deleteBook(UUID id) {
         if (!bookRepository.existsById(id)) {
             throw new BookNotFoundException("Book not found: " + id);
         }
+        if (orderItemRepository.existsByBook_Id(id)) {
+            throw new IllegalStateException("Cannot delete this book because it is tied to existing customer orders. Please set its quantity to 0 instead.");
+        }
+        cartItemRepository.deleteByBook_Id(id);
+        reviewRepository.deleteByBook_Id(id);
+
         bookRepository.deleteById(id);
     }
 }

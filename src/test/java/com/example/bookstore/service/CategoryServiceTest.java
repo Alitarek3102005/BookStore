@@ -7,6 +7,7 @@ import com.example.bookstore.dto.CategoryResponse;
 import com.example.bookstore.exception.CategoryNotFoundException;
 import com.example.bookstore.exception.DuplicateResourceException;
 import com.example.bookstore.mapper.CategoryMapper;
+import com.example.bookstore.repository.BookRepository;
 import com.example.bookstore.repository.CategoryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,6 +15,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Optional;
@@ -28,6 +33,8 @@ class CategoryServiceTest {
 
     @Mock
     private CategoryRepository categoryRepository;
+    @Mock
+    private BookRepository bookRepository;
     @Mock
     private CategoryMapper categoryMapper;
 
@@ -56,14 +63,19 @@ class CategoryServiceTest {
     }
 
     @Test
-    void findAll_ShouldReturnListOfCategories() {
-        when(categoryRepository.findAll()).thenReturn(List.of(categoryEntity));
+    void searchCategories_ShouldReturnPagedCategories() {
+        Pageable pageable = PageRequest.of(0, 20);
+        Page<Category> categoryPage = new PageImpl<>(List.of(categoryEntity), pageable, 1);
+
+        when(categoryRepository.searchCategories(eq("Science"), any(Pageable.class)))
+                .thenReturn(categoryPage);
         when(categoryMapper.toResponse(categoryEntity)).thenReturn(categoryResponse);
 
-        List<CategoryResponse> result = categoryService.findAll();
+        Page<CategoryResponse> result = categoryService.searchCategories("Science", 0, 20, "name,asc");
 
-        assertEquals(1, result.size());
-        verify(categoryRepository).findAll();
+        assertEquals(1, result.getTotalElements());
+        assertEquals("Science Fiction", result.getContent().get(0).getName());
+        verify(categoryRepository).searchCategories(eq("Science"), any(Pageable.class));
     }
 
     @Test
@@ -133,7 +145,7 @@ class CategoryServiceTest {
         when(categoryRepository.existsById(categoryId)).thenReturn(true);
 
         Category differentCategory = new Category();
-        differentCategory.setId(UUID.randomUUID()); // DIFFERENT ID!
+        differentCategory.setId(UUID.randomUUID());
         differentCategory.setName(categoryRequest.getName());
 
         when(categoryRepository.findByNameIgnoreCase(categoryRequest.getName())).thenReturn(Optional.of(differentCategory));
@@ -194,6 +206,7 @@ class CategoryServiceTest {
     @Test
     void delete_ShouldDelete_WhenCategoryExists() {
         when(categoryRepository.existsById(categoryId)).thenReturn(true);
+        when(bookRepository.existsByCategory_Id(categoryId)).thenReturn(false); // <-- Stubbed check
 
         categoryService.delete(categoryId);
 

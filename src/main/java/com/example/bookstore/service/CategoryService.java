@@ -7,12 +7,16 @@ import com.example.bookstore.dto.CategoryResponse;
 import com.example.bookstore.exception.CategoryNotFoundException;
 import com.example.bookstore.exception.DuplicateResourceException;
 import com.example.bookstore.mapper.CategoryMapper;
+import com.example.bookstore.repository.BookRepository;
 import com.example.bookstore.repository.CategoryRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -20,13 +24,25 @@ import java.util.UUID;
 public class CategoryService {
 
     private final CategoryRepository categoryRepository;
+    private final BookRepository bookRepository;
     private final CategoryMapper categoryMapper;
 
+    private Pageable createPageable(Integer page, Integer size, String sort) {
+        Sort sortObj = Sort.unsorted();
+        if (sort != null && sort.contains(",")) {
+            String[] sortParams = sort.split(",");
+            sortObj = Sort.by(Sort.Direction.fromString(sortParams[1]), sortParams[0]);
+        } else if (sort != null) {
+            sortObj = Sort.by(Sort.Direction.ASC, sort);
+        }
+        return PageRequest.of(page != null ? page : 0, size != null ? size : 20, sortObj);
+    }
+
     @Transactional(readOnly = true)
-    public List<CategoryResponse> findAll() {
-        return categoryRepository.findAll().stream()
-                .map(categoryMapper::toResponse)
-                .toList();
+    public Page<CategoryResponse> searchCategories(String keyword, Integer page, Integer size, String sort) {
+        Pageable pageable = createPageable(page, size, sort);
+        return categoryRepository.searchCategories(keyword, pageable)
+                .map(categoryMapper::toResponse);
     }
 
     @Transactional(readOnly = true)
@@ -84,6 +100,11 @@ public class CategoryService {
         if (!categoryRepository.existsById(id)) {
             throw new CategoryNotFoundException("Category not found: " + id);
         }
+
+        if (bookRepository.existsByCategory_Id(id)) {
+            throw new IllegalStateException("Cannot delete this category because there are books assigned to it. Please reassign or delete the books first.");
+        }
+
         categoryRepository.deleteById(id);
     }
 }

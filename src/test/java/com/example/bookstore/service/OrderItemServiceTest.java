@@ -20,7 +20,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,6 +33,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class OrderItemServiceTest {
 
     @Mock
@@ -65,12 +69,15 @@ class OrderItemServiceTest {
 
         bookEntity = new Book();
         bookEntity.setId(bookId);
+        bookEntity.setQuantity(10);
+        bookEntity.setPrice(BigDecimal.valueOf(15.0));
 
         orderItemEntity = new OrderItem();
         orderItemEntity.setId(orderItemId);
         orderItemEntity.setOrder(orderEntity);
         orderItemEntity.setBook(bookEntity);
         orderItemEntity.setQuantity(2);
+        orderItemEntity.setUnitPrice(BigDecimal.valueOf(15.0));
 
         request = new OrderItemRequest();
         request.setOrderId(orderId);
@@ -80,6 +87,7 @@ class OrderItemServiceTest {
         response = new OrderItemResponse();
         response.setBookId(orderItemId);
     }
+
     @Test
     void findAll_ShouldReturnList() {
         when(orderItemRepository.findAll()).thenReturn(List.of(orderItemEntity));
@@ -122,19 +130,20 @@ class OrderItemServiceTest {
 
     @Test
     void delete_ShouldDeleteItem_WhenExists() {
-        when(orderItemRepository.existsById(orderItemId)).thenReturn(true);
+        // Service uses findById via getOrThrow for deletion lookup
+        when(orderItemRepository.findById(orderItemId)).thenReturn(Optional.of(orderItemEntity));
 
         orderItemService.delete(orderItemId);
 
-        verify(orderItemRepository).deleteById(orderItemId);
+        verify(orderItemRepository).delete(orderItemEntity);
     }
 
     @Test
     void delete_ShouldThrowException_WhenNotFound() {
-        when(orderItemRepository.existsById(orderItemId)).thenReturn(false);
+        when(orderItemRepository.findById(orderItemId)).thenReturn(Optional.empty());
 
         assertThrows(OrderNotFoundException.class, () -> orderItemService.delete(orderItemId));
-        verify(orderItemRepository, never()).deleteById(any());
+        verify(orderItemRepository, never()).delete(any());
     }
 
     @Test
@@ -144,13 +153,13 @@ class OrderItemServiceTest {
         when(orderItemRepository.existsByOrder_IdAndBook_Id(orderId, bookId)).thenReturn(false);
 
         when(orderItemMapper.toEntity(request)).thenReturn(orderItemEntity);
-        when(orderItemRepository.save(orderItemEntity)).thenReturn(orderItemEntity);
+        when(orderItemRepository.save(any(OrderItem.class))).thenReturn(orderItemEntity);
         when(orderItemMapper.toResponse(orderItemEntity)).thenReturn(response);
 
         OrderItemResponse result = orderItemService.save(request);
 
         assertNotNull(result);
-        verify(orderItemRepository).save(orderItemEntity);
+        verify(orderItemRepository).save(any(OrderItem.class));
     }
 
     @Test

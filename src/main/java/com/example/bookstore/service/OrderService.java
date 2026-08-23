@@ -1,6 +1,8 @@
 package com.example.bookstore.service;
 
 import com.example.bookstore.domain.Book;
+import com.example.bookstore.domain.Cart;
+import com.example.bookstore.domain.CartItem;
 import com.example.bookstore.domain.Order;
 import com.example.bookstore.domain.OrderItem;
 import com.example.bookstore.domain.OrderStatus;
@@ -9,15 +11,21 @@ import com.example.bookstore.dto.OrderPatchRequest;
 import com.example.bookstore.dto.OrderRequest;
 import com.example.bookstore.dto.OrderResponse;
 import com.example.bookstore.exception.BookNotFoundException;
+import com.example.bookstore.exception.CartNotFoundException;
 import com.example.bookstore.exception.InsufficientStockException;
 import com.example.bookstore.exception.InvalidOrderException;
 import com.example.bookstore.exception.OrderNotFoundException;
 import com.example.bookstore.exception.UserNotFoundException;
 import com.example.bookstore.mapper.OrderMapper;
 import com.example.bookstore.repository.BookRepository;
+import com.example.bookstore.repository.CartRepository;
 import com.example.bookstore.repository.OrderRepository;
 import com.example.bookstore.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -35,13 +43,38 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final BookRepository bookRepository;
+    private final CartRepository cartRepository;
     private final OrderMapper orderMapper;
 
+    // Helper method to map frontend sort parameters to backend entity fields
+    private String mapSortProperty(String frontendProperty) {
+        if ("orderDate".equals(frontendProperty)) {
+            return "createdAt";
+        }
+        if ("totalAmount".equals(frontendProperty)) {
+            return "totalPrice";
+        }
+        return frontendProperty;
+    }
+
+    private Pageable createPageable(Integer page, Integer size, String sort) {
+        Sort sortObj = Sort.unsorted();
+        if (sort != null && sort.contains(",")) {
+            String[] sortParams = sort.split(",");
+            String sortBy = mapSortProperty(sortParams[0]);
+            sortObj = Sort.by(Sort.Direction.fromString(sortParams[1]), sortBy);
+        } else if (sort != null) {
+            String sortBy = mapSortProperty(sort);
+            sortObj = Sort.by(Sort.Direction.ASC, sortBy);
+        }
+        return PageRequest.of(page != null ? page : 0, size != null ? size : 20, sortObj);
+    }
+
     @Transactional(readOnly = true)
-    public List<OrderResponse> getAllOrders() {
-        return orderRepository.findAll().stream()
-                .map(orderMapper::toResponse)
-                .toList();
+    public Page<OrderResponse> getAllOrders(UUID customerId, OrderStatus status, Integer page, Integer size, String sort) {
+        Pageable pageable = createPageable(page, size, sort);
+        return orderRepository.searchOrders(customerId, status, pageable)
+                .map(orderMapper::toResponse);
     }
 
     @Transactional(readOnly = true)
@@ -52,13 +85,14 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public List<OrderResponse> getOrdersByUser(UUID userId) {
+    public Page<OrderResponse> getOrdersByUser(UUID userId, Integer page, Integer size, String sort) {
         if (!userRepository.existsById(userId)) {
             throw new UserNotFoundException("User not found: " + userId);
         }
-        return orderRepository.findByCustomer_UserId(userId).stream()
-                .map(orderMapper::toResponse)
-                .toList();
+        Pageable pageable = createPageable(page, size, sort);
+
+        return orderRepository.findByCustomer_UserId(userId, pageable)
+                .map(orderMapper::toResponse);
     }
 
     @Transactional
@@ -104,6 +138,55 @@ public class OrderService {
         order.setStatus(OrderStatus.PENDING);
 
         return orderMapper.toResponse(orderRepository.save(order));
+    }
+
+    @Transactional
+    public OrderResponse checkoutCart(UUID userId) {
+        Cart cart = cartRepository.findByCustomer_UserId(userId)
+                .orElseThrow(() -> new CartNotFoundException("No cart found for user: " + userId));
+
+        if (cart.getCartItems().isEmpty()) {
+            throw new InvalidOrderException("Cannot checkout an empty cart.");
+        }
+
+        Order order = new Order();
+        order.setCustomer(cart.getCustomer());
+        order.setStatus(OrderStatus.PENDING);
+        order.setCreatedAt(LocalDateTime.now());
+        order.setUpdatedAt(LocalDateTime.now());
+
+        List<OrderItem> orderItems = new ArrayList<>();
+        double totalPrice = 0.0;
+
+        for (CartItem cartItem : cart.getCartItems()) {
+            Book book = cartItem.getBook();
+
+            if (book.getQuantity() < cartItem.getQuantity()) {
+                throw new InsufficientStockException("Not enough stock for book: " + book.getTitle());
+            }
+
+            book.setQuantity(book.getQuantity() - cartItem.getQuantity());
+            bookRepository.save(book);
+
+            OrderItem orderItem = new OrderItem();
+            orderItem.setOrder(order);
+            orderItem.setBook(book);
+            orderItem.setQuantity(cartItem.getQuantity());
+            orderItem.setUnitPrice(book.getPrice());
+
+            totalPrice += (book.getPrice().doubleValue() * cartItem.getQuantity());
+            orderItems.add(orderItem);
+        }
+
+        order.setOrderItems(orderItems);
+        order.setTotalPrice(totalPrice);
+        Order savedOrder = orderRepository.save(order);
+
+        cart.getCartItems().clear();
+        cart.setUpdatedAt(LocalDateTime.now());
+        cartRepository.save(cart);
+
+        return orderMapper.toResponse(savedOrder);
     }
 
     @Transactional
@@ -172,7 +255,6 @@ public class OrderService {
         }
 
         order.setStatus(OrderStatus.SHIPPED);
-
         order.setUpdatedAt(LocalDateTime.now());
 
         return orderMapper.toResponse(orderRepository.save(order));

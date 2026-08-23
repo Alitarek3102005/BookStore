@@ -3,29 +3,24 @@ package com.example.bookstore.domain;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-import lombok.ToString;
 
-import java.math.BigDecimal;
 import java.util.UUID;
 
 @Entity
-@Table(name = "order_items")
+@Table(name = "cart_items")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class OrderItem {
+public class CartItem {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "orderId", nullable = false)
-    private Order order;
+    @JoinColumn(name = "cartId", nullable = false)
+    private Cart cart;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "bookId", nullable = false)
@@ -33,7 +28,4 @@ public class OrderItem {
 
     @Column(nullable = false)
     private Integer quantity;
-
-    @Column(name = "unit_price", nullable = false, precision = 19, scale = 2)
-    private BigDecimal unitPrice;
 }

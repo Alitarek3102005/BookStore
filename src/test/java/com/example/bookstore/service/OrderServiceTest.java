@@ -25,6 +25,10 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
@@ -123,16 +127,19 @@ class OrderServiceTest {
         }
     }
 
-
     @Test
-    void getAllOrders_ShouldReturnList() {
-        when(orderRepository.findAll()).thenReturn(List.of(orderEntity));
+    void getAllOrders_ShouldReturnPagedOrders() {
+        Pageable pageable = PageRequest.of(0, 20);
+        Page<Order> orderPage = new PageImpl<>(List.of(orderEntity), pageable, 1);
+
+        when(orderRepository.searchOrders(eq(null), eq(null), any(Pageable.class)))
+                .thenReturn(orderPage);
         when(orderMapper.toResponse(orderEntity)).thenReturn(orderResponse);
 
-        List<OrderResponse> result = orderService.getAllOrders();
+        Page<OrderResponse> result = orderService.getAllOrders(null, null, 0, 20, "createdAt,desc");
 
-        assertEquals(1, result.size());
-        verify(orderRepository).findAll();
+        assertEquals(1, result.getTotalElements());
+        verify(orderRepository).searchOrders(eq(null), eq(null), any(Pageable.class));
     }
 
     @Test
@@ -153,36 +160,28 @@ class OrderServiceTest {
     }
 
     @Test
-    void getOrdersByUser_ShouldReturnList_WhenUserExists() {
-        UUID userId = UUID.randomUUID();
-        Order mockOrder = new Order();
-        OrderResponse mockResponse = new OrderResponse();
+    void getOrdersByUser_ShouldReturnPagedOrders_WhenUserExists() {
+        Pageable pageable = PageRequest.of(0, 20);
+        Page<Order> orderPage = new PageImpl<>(List.of(orderEntity), pageable, 1);
 
         when(userRepository.existsById(userId)).thenReturn(true);
-        when(orderRepository.findByCustomer_UserId(userId)).thenReturn(List.of(mockOrder));
-        when(orderMapper.toResponse(mockOrder)).thenReturn(mockResponse);
+        when(orderRepository.findByCustomer_UserId(eq(userId), any(Pageable.class)))
+                .thenReturn(orderPage);
+        when(orderMapper.toResponse(orderEntity)).thenReturn(orderResponse);
 
-        List<OrderResponse> result = orderService.getOrdersByUser(userId);
+        Page<OrderResponse> result = orderService.getOrdersByUser(userId, 0, 20, "createdAt,desc");
 
         assertNotNull(result);
-        assertEquals(1, result.size());
-        verify(orderRepository).findByCustomer_UserId(userId);
+        assertEquals(1, result.getTotalElements());
+        verify(orderRepository).findByCustomer_UserId(eq(userId), any(Pageable.class));
     }
 
     @Test
-    void getOrdersByUser_ShouldReturnEmptyList_WhenNoOrdersFound() {
-        UUID userId = UUID.randomUUID();
+    void getOrdersByUser_ShouldThrowException_WhenUserNotFound() {
+        when(userRepository.existsById(userId)).thenReturn(false);
 
-        when(userRepository.existsById(userId)).thenReturn(true);
-        when(orderRepository.findByCustomer_UserId(userId)).thenReturn(List.of());
-
-        List<OrderResponse> result = orderService.getOrdersByUser(userId);
-
-        assertNotNull(result);
-        assertTrue(result.isEmpty(), "The result should be an empty list");
-        verify(orderRepository).findByCustomer_UserId(userId);
-
-        verify(orderMapper, never()).toResponse(any());
+        assertThrows(UserNotFoundException.class, () -> orderService.getOrdersByUser(userId, 0, 20, "createdAt,desc"));
+        verify(orderRepository, never()).findByCustomer_UserId(any(), any());
     }
 
     @Test
@@ -269,7 +268,6 @@ class OrderServiceTest {
         assertThrows(OrderNotFoundException.class, () -> orderService.delete(orderId));
         verify(orderRepository, never()).deleteById(any());
     }
-
 
     @Test
     void payOrder_ShouldSucceed_WhenUserIsOwnerAndOrderIsPending() {
