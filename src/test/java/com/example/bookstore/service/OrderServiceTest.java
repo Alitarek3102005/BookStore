@@ -16,6 +16,7 @@ import com.example.bookstore.mapper.OrderMapper;
 import com.example.bookstore.repository.BookRepository;
 import com.example.bookstore.repository.OrderRepository;
 import com.example.bookstore.repository.UserRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,6 +25,10 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.math.BigDecimal;
@@ -99,6 +104,25 @@ class OrderServiceTest {
         orderResponse = new OrderResponse();
     }
 
+    @AfterEach
+    void tearDownSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
+
+    private void mockSecurityContext(String role) {
+        Authentication authentication = mock(Authentication.class);
+        SecurityContext securityContext = mock(SecurityContext.class);
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        SecurityContextHolder.setContext(securityContext);
+
+        if (role != null) {
+            doReturn(List.of(new SimpleGrantedAuthority(role)))
+                    .when(authentication).getAuthorities();
+        } else {
+            doReturn(List.of()).when(authentication).getAuthorities();
+        }
+    }
+
 
     @Test
     void getAllOrders_ShouldReturnList() {
@@ -134,6 +158,7 @@ class OrderServiceTest {
         Order mockOrder = new Order();
         OrderResponse mockResponse = new OrderResponse();
 
+        when(userRepository.existsById(userId)).thenReturn(true);
         when(orderRepository.findByCustomer_UserId(userId)).thenReturn(List.of(mockOrder));
         when(orderMapper.toResponse(mockOrder)).thenReturn(mockResponse);
 
@@ -148,6 +173,7 @@ class OrderServiceTest {
     void getOrdersByUser_ShouldReturnEmptyList_WhenNoOrdersFound() {
         UUID userId = UUID.randomUUID();
 
+        when(userRepository.existsById(userId)).thenReturn(true);
         when(orderRepository.findByCustomer_UserId(userId)).thenReturn(List.of());
 
         List<OrderResponse> result = orderService.getOrdersByUser(userId);
@@ -249,7 +275,7 @@ class OrderServiceTest {
     void payOrder_ShouldSucceed_WhenUserIsOwnerAndOrderIsPending() {
         when(orderRepository.findById(orderId)).thenReturn(Optional.of(orderEntity));
         when(jwt.getSubject()).thenReturn(userId.toString());
-        when(jwt.getClaimAsStringList("realm_access")).thenReturn(null);
+        mockSecurityContext(null);
 
         when(orderRepository.save(any(Order.class))).thenReturn(orderEntity);
         when(orderMapper.toResponse(orderEntity)).thenReturn(orderResponse);
@@ -266,7 +292,7 @@ class OrderServiceTest {
         when(orderRepository.findById(orderId)).thenReturn(Optional.of(orderEntity));
 
         when(jwt.getSubject()).thenReturn(UUID.randomUUID().toString());
-        when(jwt.getClaimAsStringList("realm_access")).thenReturn(List.of("ADMIN"));
+        mockSecurityContext("ROLE_ADMIN");
 
         when(orderRepository.save(any(Order.class))).thenReturn(orderEntity);
         when(orderMapper.toResponse(orderEntity)).thenReturn(orderResponse);
@@ -290,9 +316,8 @@ class OrderServiceTest {
     void payOrder_ShouldThrowException_WhenUserIsNotOwnerOrAdmin() {
         when(orderRepository.findById(orderId)).thenReturn(Optional.of(orderEntity));
 
-        // Subject is someone else
         when(jwt.getSubject()).thenReturn(UUID.randomUUID().toString());
-        when(jwt.getClaimAsStringList("realm_access")).thenReturn(null);
+        mockSecurityContext(null);
 
         RuntimeException exception = assertThrows(RuntimeException.class, () -> orderService.payOrder(orderId, jwt));
         assertEquals("Unauthorized: You can only pay for your own orders.", exception.getMessage());
@@ -305,7 +330,7 @@ class OrderServiceTest {
 
         when(orderRepository.findById(orderId)).thenReturn(Optional.of(orderEntity));
         when(jwt.getSubject()).thenReturn(userId.toString());
-        when(jwt.getClaimAsStringList("realm_access")).thenReturn(null);
+        mockSecurityContext(null);
 
         RuntimeException exception = assertThrows(RuntimeException.class, () -> orderService.payOrder(orderId, jwt));
         assertEquals("Order cannot be paid unless it is pending.", exception.getMessage());
