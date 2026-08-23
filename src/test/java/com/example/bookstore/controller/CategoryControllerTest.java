@@ -15,6 +15,10 @@ import org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration
 import org.springframework.boot.security.oauth2.server.resource.autoconfigure.OAuth2ResourceServerAutoConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -91,14 +95,19 @@ class CategoryControllerTest {
 
     @Test
     void getAllCategories_ShouldReturn200Ok() throws Exception {
-        when(categoryService.findAll()).thenReturn(List.of(categoryResponse));
+        Pageable pageable = PageRequest.of(0, 20);
+        Page<CategoryResponse> categoryPage = new PageImpl<>(List.of(categoryResponse), pageable, 1);
+
+        when(categoryService.searchCategories(any(), any(), any(), any()))
+                .thenReturn(categoryPage);
 
         mockMvc.perform(get("/api/categories"))
                 .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "1"))
                 .andExpect(jsonPath("$.size()").value(1))
                 .andExpect(jsonPath("$[0].name").value("Science Fiction"));
 
-        verify(categoryService).findAll();
+        verify(categoryService).searchCategories(any(), any(), any(), any());
     }
 
     @Test

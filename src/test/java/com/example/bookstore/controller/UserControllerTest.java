@@ -1,5 +1,6 @@
 package com.example.bookstore.controller;
 
+import com.example.bookstore.domain.Role;
 import com.example.bookstore.dto.UserPatchRequest;
 import com.example.bookstore.dto.UserRequest;
 import com.example.bookstore.dto.UserResponse;
@@ -13,6 +14,10 @@ import org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration
 import org.springframework.boot.security.oauth2.server.resource.autoconfigure.OAuth2ResourceServerAutoConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -84,14 +89,19 @@ class UserControllerTest {
 
     @Test
     void getAllUsers_ShouldReturn200Ok() throws Exception {
-        when(userService.findAll()).thenReturn(List.of(userResponse));
+        Pageable pageable = PageRequest.of(0, 20);
+        Page<UserResponse> userPage = new PageImpl<>(List.of(userResponse), pageable, 1);
+
+        when(userService.searchUsers(any(), any(), any(), any(), any(), any()))
+                .thenReturn(userPage);
 
         mockMvc.perform(get("/api/users"))
                 .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "1"))
                 .andExpect(jsonPath("$.size()").value(1))
                 .andExpect(jsonPath("$[0].username").value("testuser"));
 
-        verify(userService).findAll();
+        verify(userService).searchUsers(any(), any(), any(), any(), any(), any());
     }
 
     @Test

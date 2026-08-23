@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Bookstore REST API
-  description: API contract for the Spring Boot Bookstore System, matching the ERD (User, Orders, OrderItem, Book, Category).
+  description: API contract for the Spring Boot Bookstore System, matching the ERD and pagination/search features.
   version: 1.0.0
 servers:
   - url: http://localhost:8080
@@ -14,19 +14,63 @@ tags:
   - name: Users
     description: User registration and management
   - name: Orders
-    description: Order processing
+    description: Order processing and checkout
   - name: OrderItems
     description: Individual line items within an order
   - name: Books
     description: Book catalog management
   - name: Categories
     description: Category management for books
+  - name: Carts
+    description: Shopping cart management and analytics
+  - name: CartItems
+    description: Individual items within a shopping cart
+  - name: Reviews
+    description: User reviews and ratings for books
 paths:
   /api/users:
     get:
       tags: [Users]
-      summary: Get all users
+      summary: Get all users with search, filter, and pagination
       operationId: getAllUsers
+      parameters:
+        - name: keyword
+          in: query
+          required: false
+          description: Filter by username or email (partial, case-insensitive)
+          schema:
+            type: string
+        - name: role
+          in: query
+          required: false
+          description: Filter by role
+          schema:
+            type: string
+            enum: [ADMIN, CUSTOMER]
+        - name: enabled
+          in: query
+          required: false
+          description: Filter by account status
+          schema:
+            type: boolean
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - name: sort
+          in: query
+          required: false
+          description: "e.g. username,asc"
+          schema:
+            type: string
       responses:
         '200':
           description: A list of users
@@ -134,11 +178,216 @@ paths:
         '404':
           description: User not found
 
+  /api/carts:
+    get:
+      tags: [Carts]
+      summary: Get all active carts (Admin analytics)
+      operationId: getAllCarts
+      responses:
+        '200':
+          description: A list of all carts in the system
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CartResponse'
+
+  /api/users/{userId}/cart:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Carts]
+      summary: Get or create the active cart for a user
+      operationId: getOrCreateCart
+      responses:
+        '200':
+          description: User's cart retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [Carts]
+      summary: Clear all items from a user's cart
+      operationId: clearCart
+      responses:
+        '204':
+          description: Cart cleared successfully
+        '404':
+          description: Cart not found
+
+  /api/users/{userId}/cart/items:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags: [Carts]
+      summary: Add a book to the user's cart
+      operationId: addItemToCart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartItemRequest'
+      responses:
+        '200':
+          description: Item added successfully (returns updated cart)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+        '404':
+          description: Book or User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Insufficient stock for the requested quantity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/cart-items/{cartItemId}:
+    parameters:
+      - name: cartItemId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      tags: [CartItems]
+      summary: Update the quantity of a specific cart item
+      operationId: updateCartItemQuantity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartItemPatchRequest'
+      responses:
+        '200':
+          description: Cart item updated successfully (returns updated cart)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+        '404':
+          description: Cart item not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Insufficient stock for the requested quantity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [CartItems]
+      summary: Remove an item entirely from the cart
+      operationId: removeCartItem
+      responses:
+        '204':
+          description: Cart item removed successfully
+        '404':
+          description: Cart item not found
+
+  /api/users/{userId}/checkout:
+    parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags: [Orders]
+      summary: Checkout a user's cart and convert it to an Order
+      operationId: checkoutUserCart
+      responses:
+        '201':
+          description: Order created successfully from cart items
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '400':
+          description: Cart is empty or invalid state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User or Cart not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Insufficient stock for one or more items in the cart
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /api/orders:
     get:
       tags: [Orders]
-      summary: Get all orders
+      summary: Get all orders with filtering and pagination
       operationId: getAllOrders
+      parameters:
+        - name: customerId
+          in: query
+          required: false
+          description: Filter orders by specific user
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          description: Filter orders by status
+          schema:
+            type: string
+            enum: [PENDING, COMPLETED, SHIPPED, CANCELED]
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
       responses:
         '200':
           description: A list of orders
@@ -150,7 +399,7 @@ paths:
                   $ref: '#/components/schemas/OrderResponse'
     post:
       tags: [Orders]
-      summary: Place a new order
+      summary: Place a new direct order (Buy it Now)
       operationId: createOrder
       requestBody:
         required: true
@@ -283,8 +532,26 @@ paths:
           format: uuid
     get:
       tags: [Orders]
-      summary: Get all orders for a specific user
+      summary: Get all orders for a specific user with pagination
       operationId: getOrdersByUser
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
       responses:
         '200':
           description: A list of orders belonging to the user
@@ -575,12 +842,152 @@ paths:
         '404':
           description: Book not found
 
+  /api/books/{bookId}/reviews:
+    parameters:
+      - name: bookId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Reviews]
+      summary: Get all reviews for a specific book with pagination
+      operationId: getReviewsByBook
+      security: []
+      parameters:
+        - name: userId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: rating
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A list of reviews
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReviewResponse'
+        '404':
+          description: Book not found
+    post:
+      tags: [Reviews]
+      summary: Add a new review to a book
+      operationId: createReview
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewRequest'
+      responses:
+        '201':
+          description: Review created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewResponse'
+        '400':
+          description: Validation error
+        '404':
+          description: Book or User not found
+        '409':
+          description: User has already reviewed this book
+
+  /api/reviews/{reviewId}:
+    parameters:
+      - name: reviewId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    patch:
+      tags: [Reviews]
+      summary: Partially update a review (e.g. rating or comment)
+      operationId: patchReview
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewPatchRequest'
+      responses:
+        '200':
+          description: Review updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewResponse'
+        '404':
+          description: Review not found
+    delete:
+      tags: [Reviews]
+      summary: Delete a review
+      operationId: deleteReview
+      responses:
+        '204':
+          description: Review deleted successfully
+        '404':
+          description: Review not found
+
   /api/categories:
     get:
       tags: [Categories]
-      summary: Get all categories
+      summary: Get all categories with search and pagination
       operationId: getAllCategories
       security: []
+      parameters:
+        - name: keyword
+          in: query
+          required: false
+          description: Search by name or description
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
       responses:
         '200':
           description: A list of categories
@@ -722,6 +1129,118 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
+    CartResponse:
+      type: object
+      properties:
+        cartId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        totalAmount:
+          type: number
+          format: double
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItemResponse'
+
+    CartItemResponse:
+      type: object
+      properties:
+        cartItemId:
+          type: string
+          format: uuid
+        bookId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        quantity:
+          type: integer
+          format: int32
+        unitPrice:
+          type: number
+          format: double
+        subtotal:
+          type: number
+          format: double
+
+    CartItemRequest:
+      type: object
+      required: [bookId, quantity]
+      properties:
+        bookId:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+
+    CartItemPatchRequest:
+      type: object
+      properties:
+        quantity:
+          type: integer
+          format: int32
+          minimum: 1
+
+    ReviewRequest:
+      type: object
+      required: [userId, rating]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        rating:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+          maxLength: 1000
+
+    ReviewPatchRequest:
+      type: object
+      properties:
+        rating:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+          maxLength: 1000
+
+    ReviewResponse:
+      type: object
+      properties:
+        reviewId:
+          type: string
+          format: uuid
+        bookId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        username:
+          type: string
+        rating:
+          type: integer
+          format: int32
+        comment:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
     UserRequest:
       type: object
       required: [username, email, password]

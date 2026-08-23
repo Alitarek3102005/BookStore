@@ -10,6 +10,9 @@ import com.example.bookstore.exception.CategoryNotFoundException;
 import com.example.bookstore.mapper.BookMapper;
 import com.example.bookstore.repository.BookRepository;
 import com.example.bookstore.repository.CategoryRepository;
+import com.example.bookstore.repository.OrderItemRepository;
+import com.example.bookstore.repository.CartItemRepository;
+import com.example.bookstore.repository.ReviewRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,6 +39,12 @@ class BookServiceTest {
     private BookRepository bookRepository;
     @Mock
     private CategoryRepository categoryRepository;
+    @Mock
+    private OrderItemRepository orderItemRepository;
+    @Mock
+    private CartItemRepository cartItemRepository;
+    @Mock
+    private ReviewRepository reviewRepository;
     @Mock
     private BookMapper bookMapper;
 
@@ -71,6 +80,7 @@ class BookServiceTest {
         bookResponse.setBookId(bookId);
         bookResponse.setTitle("Dune");
     }
+
     @Test
     void searchBooks_ShouldReturnListOfBooks_WithPaginationAndSorting() {
         Page<Book> pagedResponse = new PageImpl<>(List.of(bookEntity));
@@ -120,6 +130,7 @@ class BookServiceTest {
 
         assertThrows(BookNotFoundException.class, () -> bookService.getById(bookId));
     }
+
     @Test
     void addBook_ShouldSaveAndReturnBook_WhenCategoryExists() {
         when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(categoryEntity));
@@ -141,6 +152,7 @@ class BookServiceTest {
         assertThrows(CategoryNotFoundException.class, () -> bookService.addBook(bookRequest));
         verify(bookRepository, never()).save(any());
     }
+
     @Test
     void updateBook_ShouldUpdateAndSave_WhenBookAndCategoryExist() {
         when(bookRepository.findById(bookId)).thenReturn(Optional.of(bookEntity));
@@ -202,6 +214,11 @@ class BookServiceTest {
     @Test
     void deleteBook_ShouldDelete_WhenBookExists() {
         when(bookRepository.existsById(bookId)).thenReturn(true);
+        when(orderItemRepository.existsByBook_Id(bookId)).thenReturn(false);
+
+        // Mock the cart and review deletion calls executed during deleteBook
+        doNothing().when(cartItemRepository).deleteByBook_Id(bookId);
+        doNothing().when(reviewRepository).deleteByBook_Id(bookId);
 
         bookService.deleteBook(bookId);
 

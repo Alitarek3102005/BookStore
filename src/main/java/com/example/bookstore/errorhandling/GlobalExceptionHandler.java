@@ -121,11 +121,37 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 "E400_KEYCLOAK_CREATION_FAILED", request);
     }
 
-    // ADDED: Generic Exception Fallback to prevent Whitelabel Error Pages
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Object> handleGenericException(Exception e, WebRequest request) {
         return createErrorResponse(e, HttpStatus.INTERNAL_SERVER_ERROR,
                 "An unexpected system error occurred.",
                 "E500_INTERNAL_ERROR", request);
+    }
+    @ExceptionHandler(CartNotFoundException.class)
+    public ResponseEntity<Object> handleCartNotFoundException(CartNotFoundException e, WebRequest request) {
+        return createErrorResponse(e, HttpStatus.NOT_FOUND,
+                "The requested cart could not be found.",
+                "E404_CART_NOT_FOUND", request);
+    }
+
+    @ExceptionHandler(CartItemNotFoundException.class)
+    public ResponseEntity<Object> handleCartItemNotFoundException(CartItemNotFoundException e, WebRequest request) {
+        return createErrorResponse(e, HttpStatus.NOT_FOUND,
+                "The requested cart item could not be found.",
+                "E404_CART_ITEM_NOT_FOUND", request);
+    }
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<Object> handleResourceNotFoundException(ResourceNotFoundException e, WebRequest request) {
+        return createErrorResponse(e,HttpStatus.NOT_FOUND,
+                "The requested resource could not be found.",
+                "E404_RESOURCE_NOT_FOUND", request
+                );
+    }
+    @ExceptionHandler(ReviewNotFoundException.class)
+    public ResponseEntity<Object> handleReviewNotFoundException(ReviewNotFoundException e, WebRequest request) {
+        return createErrorResponse(e,HttpStatus.NOT_FOUND,
+                "The review could not be found.",
+                "E404_REVIEW_NOT_FOUND", request
+        );
     }
 }

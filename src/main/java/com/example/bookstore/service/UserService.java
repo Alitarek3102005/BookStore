@@ -1,5 +1,6 @@
 package com.example.bookstore.service;
 
+import com.example.bookstore.domain.Cart;
 import com.example.bookstore.domain.Role;
 import com.example.bookstore.domain.User;
 import com.example.bookstore.dto.UserPatchRequest;
@@ -8,16 +9,20 @@ import com.example.bookstore.dto.UserResponse;
 import com.example.bookstore.exception.DuplicateResourceException;
 import com.example.bookstore.exception.UserNotFoundException;
 import com.example.bookstore.mapper.UserMapper;
+import com.example.bookstore.repository.CartRepository;
 import com.example.bookstore.repository.UserRepository;
 import com.example.bookstore.security.keycloak.KeycloakAdminService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -26,14 +31,26 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final CartRepository cartRepository;
     private final KeycloakAdminService keycloakAdminService;
     private final PasswordEncoder passwordEncoder;
 
+    private Pageable createPageable(Integer page, Integer size, String sort) {
+        Sort sortObj = Sort.unsorted();
+        if (sort != null && sort.contains(",")) {
+            String[] sortParams = sort.split(",");
+            sortObj = Sort.by(Sort.Direction.fromString(sortParams[1]), sortParams[0]);
+        } else if (sort != null) {
+            sortObj = Sort.by(Sort.Direction.ASC, sort);
+        }
+        return PageRequest.of(page != null ? page : 0, size != null ? size : 20, sortObj);
+    }
+
     @Transactional(readOnly = true)
-    public List<UserResponse> findAll() {
-        return userRepository.findAll().stream()
-                .map(userMapper::toResponse)
-                .toList();
+    public Page<UserResponse> searchUsers(String keyword, Role role, Boolean enabled, Integer page, Integer size, String sort) {
+        Pageable pageable = createPageable(page, size, sort);
+        return userRepository.searchUsers(keyword, role, enabled, pageable)
+                .map(userMapper::toResponse);
     }
 
     @Transactional(readOnly = true)
@@ -59,10 +76,16 @@ public class UserService {
             User userEntity = userMapper.toEntity(request);
             userEntity.setUserId(keycloakUserId);
             userEntity.setRole(registrationRole);
-
             userEntity.setPassword(passwordEncoder.encode(request.getPassword()));
 
-            return userMapper.toResponse(userRepository.saveAndFlush(userEntity));
+            User savedUser = userRepository.saveAndFlush(userEntity);
+
+            Cart cart = new Cart();
+            cart.setCustomer(savedUser);
+            cartRepository.save(cart);
+
+            return userMapper.toResponse(savedUser);
+
         } catch (RuntimeException ex) {
             keycloakAdminService.deleteUser(keycloakUserId);
             throw ex;

@@ -15,6 +15,10 @@ import org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration
 import org.springframework.boot.security.oauth2.server.resource.autoconfigure.OAuth2ResourceServerAutoConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
@@ -103,14 +107,19 @@ class OrderControllerTest {
 
     @Test
     void getAllOrders_ShouldReturn200Ok() throws Exception {
-        when(orderService.getAllOrders()).thenReturn(List.of(orderResponse));
+        Pageable pageable = PageRequest.of(0, 20);
+        Page<OrderResponse> orderPage = new PageImpl<>(List.of(orderResponse), pageable, 1);
+
+        when(orderService.getAllOrders(any(), any(), any(), any(), any()))
+                .thenReturn(orderPage);
 
         mockMvc.perform(get("/api/orders"))
                 .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "1"))
                 .andExpect(jsonPath("$.size()").value(1))
                 .andExpect(jsonPath("$[0].orderId").value(orderId.toString()));
 
-        verify(orderService).getAllOrders();
+        verify(orderService).getAllOrders(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -126,13 +135,18 @@ class OrderControllerTest {
 
     @Test
     void getOrdersByUser_ShouldReturn200Ok() throws Exception {
-        when(orderService.getOrdersByUser(userId)).thenReturn(List.of(orderResponse));
+        Pageable pageable = PageRequest.of(0, 20);
+        Page<OrderResponse> orderPage = new PageImpl<>(List.of(orderResponse), pageable, 1);
+
+        when(orderService.getOrdersByUser(eq(userId), any(), any(), any()))
+                .thenReturn(orderPage);
 
         mockMvc.perform(get("/api/users/{userId}/orders", userId))
                 .andExpect(status().isOk())
+                .andExpect(header().string("X-Total-Count", "1"))
                 .andExpect(jsonPath("$.size()").value(1));
 
-        verify(orderService).getOrdersByUser(userId);
+        verify(orderService).getOrdersByUser(eq(userId), any(), any(), any());
     }
 
     @Test

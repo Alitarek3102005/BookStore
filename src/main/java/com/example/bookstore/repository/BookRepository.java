@@ -23,4 +23,6 @@ public interface BookRepository extends JpaRepository<Book, UUID> {
                            @Param("categoryId") UUID categoryId,
                            Pageable pageable);
     List<Book> findByCategory_Id(UUID categoryId);
+
+    boolean existsByCategory_Id(UUID categoryId);
 }

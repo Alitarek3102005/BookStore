@@ -10,6 +10,7 @@ import org.mapstruct.ReportingPolicy;
 
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 
 @Mapper(componentModel = "spring", uses = {OrderItemMapper.class}, unmappedTargetPolicy = ReportingPolicy.IGNORE)
@@ -41,6 +42,6 @@ public interface OrderMapper {
     void updateEntityFromRequest(OrderRequest request, @MappingTarget Order order);
 
     default OffsetDateTime map(LocalDateTime value) {
-        return value == null ? null : value.atOffset(ZoneOffset.UTC);
+        return value == null ? null : value.atZone(ZoneId.systemDefault()).toOffsetDateTime();
     }
 }
