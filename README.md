@@ -12,7 +12,7 @@
 
 A highly scalable, full-stack enterprise e-commerce platform designed for software engineers. This system handles the full lifecycle of an online technical bookstore, featuring stateful order processing, centralized Identity and Access Management (IAM), contract-first API design, and interactive WebGL physics labs.
 
-👉 [View Frontend Application Source](./frontend)
+👉 [View Frontend Application Source](https://github.com/Alitarek3102005/BookStoreVoisFrontend.git)
 
 ---
 
