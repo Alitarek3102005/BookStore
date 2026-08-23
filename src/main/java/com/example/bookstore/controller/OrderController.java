@@ -42,7 +42,7 @@ public class OrderController implements OrdersApi {
     }
 
     @Override
-    @PreAuthorize("hasRole('ADMIN') or @orderSecurity.isOrderOwner(authentication, #orderId)")
+    @PreAuthorize("hasRole('ADMIN') or @ownershipSecurity.isOrderOwner(authentication, #orderId)")
     public ResponseEntity<OrderResponse> getOrderById(UUID orderId) {
         return new ResponseEntity<>(orderService.getById(orderId), HttpStatus.OK);
     }
@@ -60,9 +60,9 @@ public class OrderController implements OrdersApi {
     }
 
     @Override
+    @PreAuthorize("hasRole('ADMIN') or @ownershipSecurity.isOrderOwner(authentication, #orderId)")
     public ResponseEntity<OrderResponse> payOrder(UUID orderId) {
         Jwt jwt = (Jwt) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-
         OrderResponse response = orderService.payOrder(orderId, jwt);
         return ResponseEntity.ok(response);
     }
