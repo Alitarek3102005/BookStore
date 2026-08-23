@@ -50,7 +50,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .timestamp(LocalDateTime.now())
                 .status(status.value())
                 .error(status.getReasonPhrase())
-                .message(summaryMessage) // General, high-level message (e.g., "Resource not found")
+                .message(summaryMessage)
                 .path(request.getDescription(false).replace("uri=", ""))
                 .errorItems(List.of(new ErrorItem(errorCode, e.getMessage())))
                 .build();
@@ -65,11 +65,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 "E404_BOOK_NOT_FOUND", request);
     }
 
-    @ExceptionHandler(CustomerNotFoundException.class)
-    public ResponseEntity<Object> handleCustomerNotFoundException(CustomerNotFoundException e, WebRequest request) {
+    @ExceptionHandler(UserNotFoundException.class)
+    public ResponseEntity<Object> handleUserNotFoundException(UserNotFoundException e, WebRequest request) {
         return createErrorResponse(e, HttpStatus.NOT_FOUND,
-                "The specified customer profile does not exist.",
-                "E404_CUSTOMER_NOT_FOUND", request);
+                "The specified user profile does not exist.",
+                "E404_USER_NOT_FOUND", request);
     }
 
     @ExceptionHandler(CategoryNotFoundException.class)
@@ -112,5 +112,20 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return createErrorResponse(e, HttpStatus.INTERNAL_SERVER_ERROR,
                 "An unexpected server error occurred while processing the order transaction.",
                 "E500_ORDER_PROCESSING_FAILED", request);
+    }
+
+    @ExceptionHandler(KeycloakUserCreationException.class)
+    public ResponseEntity<Object> handleKeycloakUserCreationException(KeycloakUserCreationException e, WebRequest request) {
+        return createErrorResponse(e, HttpStatus.BAD_REQUEST,
+                "Failed to register the user with the identity provider.",
+                "E400_KEYCLOAK_CREATION_FAILED", request);
+    }
+
+    // ADDED: Generic Exception Fallback to prevent Whitelabel Error Pages
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Object> handleGenericException(Exception e, WebRequest request) {
+        return createErrorResponse(e, HttpStatus.INTERNAL_SERVER_ERROR,
+                "An unexpected system error occurred.",
+                "E500_INTERNAL_ERROR", request);
     }
 }

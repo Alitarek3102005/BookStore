@@ -9,6 +9,8 @@ import com.example.bookstore.dto.OrderPatchRequest;
 import com.example.bookstore.dto.OrderRequest;
 import com.example.bookstore.dto.OrderResponse;
 import com.example.bookstore.exception.BookNotFoundException;
+import com.example.bookstore.exception.InsufficientStockException;
+import com.example.bookstore.exception.InvalidOrderException;
 import com.example.bookstore.exception.OrderNotFoundException;
 import com.example.bookstore.exception.UserNotFoundException;
 import com.example.bookstore.mapper.OrderMapper;
@@ -17,6 +19,7 @@ import com.example.bookstore.repository.OrderRepository;
 import com.example.bookstore.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,6 +53,9 @@ public class OrderService {
 
     @Transactional(readOnly = true)
     public List<OrderResponse> getOrdersByUser(UUID userId) {
+        if (!userRepository.existsById(userId)) {
+            throw new UserNotFoundException("User not found: " + userId);
+        }
         return orderRepository.findByCustomer_UserId(userId).stream()
                 .map(orderMapper::toResponse)
                 .toList();
@@ -63,6 +69,13 @@ public class OrderService {
         Order order = orderMapper.toEntity(request);
         order.setCustomer(customer);
 
+        if (order.getCreatedAt() == null) {
+            order.setCreatedAt(LocalDateTime.now());
+        }
+        if (order.getUpdatedAt() == null) {
+            order.setUpdatedAt(LocalDateTime.now());
+        }
+
         List<OrderItem> orderItems = new ArrayList<>();
         double totalPrice = 0.0;
 
@@ -71,7 +84,7 @@ public class OrderService {
                     .orElseThrow(() -> new BookNotFoundException("Book not found: " + itemRequest.getBookId()));
 
             if (book.getQuantity() < itemRequest.getQuantity()) {
-                throw new RuntimeException("Not enough stock for book: " + book.getTitle());
+                throw new InsufficientStockException("Not enough stock for book: " + book.getTitle());
             }
 
             book.setQuantity(book.getQuantity() - itemRequest.getQuantity());
@@ -99,8 +112,10 @@ public class OrderService {
                 .orElseThrow(() -> new OrderNotFoundException("Order not found: " + id));
 
         orderMapper.updateEntityFromRequest(request, existing);
+        existing.setUpdatedAt(LocalDateTime.now());
         return orderMapper.toResponse(orderRepository.save(existing));
     }
+
     @Transactional
     public OrderResponse patch(UUID id, OrderPatchRequest request) {
         Order existing = orderRepository.findById(id)
@@ -108,6 +123,7 @@ public class OrderService {
 
         if (request.getStatus() != null) {
             existing.setStatus(OrderStatus.valueOf(request.getStatus().getValue()));
+            existing.setUpdatedAt(LocalDateTime.now());
         }
 
         return orderMapper.toResponse(orderRepository.save(existing));
@@ -124,33 +140,41 @@ public class OrderService {
     @Scheduled(fixedRate = 10000)
     @Transactional
     public void autoCompletedShippedOrders() {
+        LocalDateTime threshold = LocalDateTime.now().minusMinutes(2);
+
         List<Order> shippedOrders = orderRepository.findAll().stream()
                 .filter(o -> o.getStatus() == OrderStatus.SHIPPED)
+                .filter(o -> o.getUpdatedAt() != null && o.getUpdatedAt().isBefore(threshold))
                 .toList();
-        LocalDateTime threshold = LocalDateTime.now().minusMinutes(2);
+
         for (Order order : shippedOrders) {
             order.setStatus(OrderStatus.COMPLETED);
+            order.setUpdatedAt(LocalDateTime.now());
             orderRepository.save(order);
         }
     }
+
     @Transactional
     public OrderResponse payOrder(UUID orderId, org.springframework.security.oauth2.jwt.Jwt jwt) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException("Order not found: " + orderId));
 
         UUID currentUserId = UUID.fromString(jwt.getSubject());
-        boolean isAdmin = jwt.getClaimAsStringList("realm_access") != null &&
-                jwt.getClaimAsStringList("realm_access").contains("ADMIN");
+
+        boolean isAdmin = SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN") || a.getAuthority().equals("ADMIN"));
 
         if (!isAdmin && !order.getCustomer().getUserId().equals(currentUserId)) {
-            RuntimeException ex = new RuntimeException("Unauthorized: You can only pay for your own orders.");
-            throw ex;
+            throw new InvalidOrderException("Unauthorized: You can only pay for your own orders.");
         }
-        if (order.getStatus() != com.example.bookstore.domain.OrderStatus.PENDING) {
-            throw new RuntimeException("Order cannot be paid unless it is pending.");
+        if (order.getStatus() != OrderStatus.PENDING) {
+            throw new InvalidOrderException("Order cannot be paid unless it is pending.");
         }
 
-        order.setStatus(com.example.bookstore.domain.OrderStatus.SHIPPED);
+        order.setStatus(OrderStatus.SHIPPED);
+
+        order.setUpdatedAt(LocalDateTime.now());
+
         return orderMapper.toResponse(orderRepository.save(order));
     }
 }
