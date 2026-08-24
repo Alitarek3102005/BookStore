@@ -17,10 +17,12 @@ public interface BookRepository extends JpaRepository<Book, UUID> {
     @Query("SELECT b FROM Book b WHERE " +
             "(:title IS NULL OR LOWER(b.title) LIKE LOWER(CONCAT('%', CAST(:title AS string), '%'))) AND " +
             "(:author IS NULL OR LOWER(b.author) LIKE LOWER(CONCAT('%', CAST(:author AS string), '%'))) AND " +
-            "(:categoryId IS NULL OR b.category.id = :categoryId)")
+            "(:categoryId IS NULL OR b.category.id = :categoryId) AND " +
+            "(:active IS NULL OR b.active = CAST(:active AS boolean))")
     Page<Book> searchBooks(@Param("title") String title,
                            @Param("author") String author,
                            @Param("categoryId") UUID categoryId,
+                           @Param("active") Boolean active,
                            Pageable pageable);
     List<Book> findByCategory_Id(UUID categoryId);
 

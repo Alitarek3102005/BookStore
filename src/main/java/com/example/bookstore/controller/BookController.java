@@ -34,9 +34,11 @@ public class BookController implements BooksApi {
     }
 
     @Override
-    public ResponseEntity<List<BookResponse>> getAllBooks(String title, String author, UUID categoryId, Integer page, Integer size, String sort) {
-        return new ResponseEntity<>(bookService.searchBooks(title, author, categoryId, page, size, sort), HttpStatus.OK);
+    public ResponseEntity<List<BookResponse>> getAllBooks(String title, String author, UUID categoryId, Boolean active, Integer page, Integer size, String sort) {
+        List<BookResponse> books = bookService.searchBooks(title, author, categoryId, active, page, size, sort);
+        return ResponseEntity.ok(books);
     }
+
 
     @Override
     public ResponseEntity<BookResponse> getBookById(UUID bookId) {

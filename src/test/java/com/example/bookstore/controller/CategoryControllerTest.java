@@ -66,6 +66,7 @@ class CategoryControllerTest {
 
         categoryRequest = new CategoryRequest();
         categoryRequest.setName("Science Fiction");
+        categoryRequest.setActive(true);
 
         categoryPatchRequest = new CategoryPatchRequest();
         categoryPatchRequest.setName("Epic Fantasy");
@@ -73,6 +74,7 @@ class CategoryControllerTest {
         categoryResponse = new CategoryResponse();
         categoryResponse.setCategoryId(categoryId);
         categoryResponse.setName("Science Fiction");
+        categoryResponse.setActive(true);
 
         bookResponse = new BookResponse();
         bookResponse.setBookId(UUID.randomUUID());
@@ -98,7 +100,7 @@ class CategoryControllerTest {
         Pageable pageable = PageRequest.of(0, 20);
         Page<CategoryResponse> categoryPage = new PageImpl<>(List.of(categoryResponse), pageable, 1);
 
-        when(categoryService.searchCategories(any(), any(), any(), any()))
+        when(categoryService.searchCategories(any(), any(), any(), any(), any()))
                 .thenReturn(categoryPage);
 
         mockMvc.perform(get("/api/categories"))
@@ -107,7 +109,7 @@ class CategoryControllerTest {
                 .andExpect(jsonPath("$.size()").value(1))
                 .andExpect(jsonPath("$[0].name").value("Science Fiction"));
 
-        verify(categoryService).searchCategories(any(), any(), any(), any());
+        verify(categoryService).searchCategories(any(), any(), any(), any(), any());
     }
 
     @Test

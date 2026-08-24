@@ -35,6 +35,9 @@ public class Book {
 
     private String imgURL;
 
+    @Column(nullable = false)
+    private Boolean active = true;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "categoryId")
     private Category category;

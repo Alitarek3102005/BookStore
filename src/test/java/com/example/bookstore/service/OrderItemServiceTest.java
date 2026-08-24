@@ -130,7 +130,6 @@ class OrderItemServiceTest {
 
     @Test
     void delete_ShouldDeleteItem_WhenExists() {
-        // Service uses findById via getOrThrow for deletion lookup
         when(orderItemRepository.findById(orderItemId)).thenReturn(Optional.of(orderItemEntity));
 
         orderItemService.delete(orderItemId);

@@ -76,7 +76,6 @@ class ReviewServiceTest {
         reviewResponse.setReviewId(reviewId);
         reviewResponse.setRating(5);
 
-        // Stub existence checks to default true globally
         lenient().when(bookRepository.existsById(any(UUID.class))).thenReturn(true);
         lenient().when(bookRepository.findById(any(UUID.class))).thenReturn(Optional.of(new Book()));
         lenient().when(userRepository.findById(any(UUID.class))).thenReturn(Optional.of(new User()));
@@ -99,7 +98,6 @@ class ReviewServiceTest {
 
     @Test
     void searchReviews_ShouldThrowException_WhenBookNotFound() {
-        // Stub existsById to return false for the not-found check
         when(bookRepository.existsById(bookId)).thenReturn(false);
 
         assertThrows(BookNotFoundException.class, () -> reviewService.searchReviews(bookId, userId, 5, 0, 20, "createdAt,desc"));
