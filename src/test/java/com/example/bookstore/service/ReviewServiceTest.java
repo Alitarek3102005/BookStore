@@ -8,7 +8,7 @@ import com.example.bookstore.dto.ReviewRequest;
 import com.example.bookstore.dto.ReviewResponse;
 import com.example.bookstore.exception.BookNotFoundException;
 import com.example.bookstore.exception.DuplicateResourceException;
-import com.example.bookstore.exception.ResourceNotFoundException;
+import com.example.bookstore.exception.ReviewNotFoundException;
 import com.example.bookstore.mapper.ReviewMapper;
 import com.example.bookstore.repository.BookRepository;
 import com.example.bookstore.repository.ReviewRepository;
@@ -152,7 +152,7 @@ class ReviewServiceTest {
     void deleteReview_ShouldThrowException_WhenNotFound() {
         when(reviewRepository.existsById(reviewId)).thenReturn(false);
 
-        assertThrows(ResourceNotFoundException.class, () -> reviewService.deleteReview(reviewId));
+        assertThrows(ReviewNotFoundException.class, () -> reviewService.deleteReview(reviewId));
         verify(reviewRepository, never()).deleteById(any());
     }
 }
