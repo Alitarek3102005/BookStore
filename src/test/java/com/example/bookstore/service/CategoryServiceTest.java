@@ -53,6 +53,7 @@ class CategoryServiceTest {
         categoryEntity = new Category();
         categoryEntity.setId(categoryId);
         categoryEntity.setName("Science Fiction");
+        categoryEntity.setActive(true);
 
         categoryRequest = new CategoryRequest();
         categoryRequest.setName("Science Fiction");
@@ -60,6 +61,7 @@ class CategoryServiceTest {
         categoryResponse = new CategoryResponse();
         categoryResponse.setCategoryId(categoryId);
         categoryResponse.setName("Science Fiction");
+        categoryResponse.setActive(true);
     }
 
     @Test
@@ -67,15 +69,16 @@ class CategoryServiceTest {
         Pageable pageable = PageRequest.of(0, 20);
         Page<Category> categoryPage = new PageImpl<>(List.of(categoryEntity), pageable, 1);
 
-        when(categoryRepository.searchCategories(eq("Science"), any(Pageable.class)))
+        // Updated to include the new 'active' boolean parameter
+        when(categoryRepository.searchCategories(eq("Science"), eq(true), any(Pageable.class)))
                 .thenReturn(categoryPage);
         when(categoryMapper.toResponse(categoryEntity)).thenReturn(categoryResponse);
 
-        Page<CategoryResponse> result = categoryService.searchCategories("Science", 0, 20, "name,asc");
+        Page<CategoryResponse> result = categoryService.searchCategories("Science", true, 0, 20, "name,asc");
 
         assertEquals(1, result.getTotalElements());
         assertEquals("Science Fiction", result.getContent().get(0).getName());
-        verify(categoryRepository).searchCategories(eq("Science"), any(Pageable.class));
+        verify(categoryRepository).searchCategories(eq("Science"), eq(true), any(Pageable.class));
     }
 
     @Test
@@ -204,20 +207,32 @@ class CategoryServiceTest {
     }
 
     @Test
-    void delete_ShouldDelete_WhenCategoryExists() {
-        when(categoryRepository.existsById(categoryId)).thenReturn(true);
-        when(bookRepository.existsByCategory_Id(categoryId)).thenReturn(false); // <-- Stubbed check
+    void delete_ShouldSoftDelete_WhenCategoryExists() {
+        // Now using findById to verify soft delete
+        when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(categoryEntity));
+        when(bookRepository.existsByCategory_Id(categoryId)).thenReturn(false);
 
         categoryService.delete(categoryId);
 
-        verify(categoryRepository).deleteById(categoryId);
+        assertFalse(categoryEntity.getActive());
+        verify(categoryRepository).save(categoryEntity);
     }
 
     @Test
     void delete_ShouldThrowException_WhenCategoryDoesNotExist() {
-        when(categoryRepository.existsById(categoryId)).thenReturn(false);
+        // Now using findById
+        when(categoryRepository.findById(categoryId)).thenReturn(Optional.empty());
 
         assertThrows(CategoryNotFoundException.class, () -> categoryService.delete(categoryId));
-        verify(categoryRepository, never()).deleteById(any());
+        verify(categoryRepository, never()).save(any());
+    }
+
+    @Test
+    void delete_ShouldThrowException_WhenBooksAreAssigned() {
+        when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(categoryEntity));
+        when(bookRepository.existsByCategory_Id(categoryId)).thenReturn(true);
+
+        assertThrows(IllegalStateException.class, () -> categoryService.delete(categoryId));
+        verify(categoryRepository, never()).save(any());
     }
 }

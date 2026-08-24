@@ -17,7 +17,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -63,6 +62,7 @@ class BookControllerTest {
         bookRequest.setQuantity(10);
         bookRequest.setCategoryId(categoryId);
         bookRequest.setPrice(29.99);
+        bookRequest.setActive(true);
 
         bookPatchRequest = new BookPatchRequest();
         bookPatchRequest.setTitle("Dune: Messiah");
@@ -70,6 +70,7 @@ class BookControllerTest {
         bookResponse = new BookResponse();
         bookResponse.setBookId(bookId);
         bookResponse.setTitle("Dune");
+        bookResponse.setActive(true);
     }
 
     @Test
@@ -88,17 +89,18 @@ class BookControllerTest {
 
     @Test
     void getAllBooks_ShouldReturn200OkWithParameters() throws Exception {
-        when(bookService.searchBooks(any(), any(), any(), any(), any(), any())).thenReturn(List.of(bookResponse));
+        when(bookService.searchBooks(any(), any(), any(), any(), any(), any(), any())).thenReturn(List.of(bookResponse));
 
         mockMvc.perform(get("/api/books")
                         .param("title", "Dune")
+                        .param("active", "true")
                         .param("page", "0")
                         .param("size", "10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.size()").value(1))
                 .andExpect(jsonPath("$[0].title").value("Dune"));
 
-        verify(bookService).searchBooks(eq("Dune"), any(), any(), eq(0), eq(10), any());
+        verify(bookService).searchBooks(eq("Dune"), any(), any(), eq(true), eq(0), eq(10), any());
     }
 
     @Test

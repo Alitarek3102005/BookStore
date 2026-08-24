@@ -19,7 +19,9 @@ public interface CategoryRepository extends JpaRepository<Category, UUID> {
     boolean existsByNameIgnoreCase(String name);
 
     @Query("SELECT c FROM Category c WHERE " +
-            "(:keyword IS NULL OR LOWER(c.name) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) " +
-            "OR LOWER(c.description) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')))")
-    Page<Category> searchCategories(@Param("keyword") String keyword, Pageable pageable);
+            "(:keyword IS NULL OR LOWER(c.name) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')) OR LOWER(c.description) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%'))) AND " +
+            "(:active IS NULL OR c.active = CAST(:active AS boolean))")
+    Page<Category> searchCategories(@Param("keyword") String keyword,
+                                    @Param("active") Boolean active,
+                                    Pageable pageable);
 }

@@ -39,9 +39,10 @@ public class CategoryService {
     }
 
     @Transactional(readOnly = true)
-    public Page<CategoryResponse> searchCategories(String keyword, Integer page, Integer size, String sort) {
+    public Page<CategoryResponse> searchCategories(String keyword, Boolean active, Integer page, Integer size, String sort) {
         Pageable pageable = createPageable(page, size, sort);
-        return categoryRepository.searchCategories(keyword, pageable)
+
+        return categoryRepository.searchCategories(keyword, active, pageable)
                 .map(categoryMapper::toResponse);
     }
 
@@ -58,6 +59,11 @@ public class CategoryService {
             throw new DuplicateResourceException("Category name already exists: " + request.getName());
         }
         Category category = categoryMapper.toEntity(request);
+
+        if (category.getActive() == null) {
+            category.setActive(true);
+        }
+
         return categoryMapper.toResponse(categoryRepository.save(category));
     }
 
@@ -97,14 +103,14 @@ public class CategoryService {
 
     @Transactional
     public void delete(UUID id) {
-        if (!categoryRepository.existsById(id)) {
-            throw new CategoryNotFoundException("Category not found: " + id);
-        }
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new CategoryNotFoundException("Category not found: " + id));
 
         if (bookRepository.existsByCategory_Id(id)) {
-            throw new IllegalStateException("Cannot delete this category because there are books assigned to it. Please reassign or delete the books first.");
+            throw new IllegalStateException("Cannot delete this category because there are active books assigned to it. Please reassign or delete the books first.");
         }
 
-        categoryRepository.deleteById(id);
+        category.setActive(false);
+        categoryRepository.save(category);
     }
 }

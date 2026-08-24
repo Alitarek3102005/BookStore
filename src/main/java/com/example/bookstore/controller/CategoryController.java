@@ -39,8 +39,8 @@ public class CategoryController implements CategoriesApi {
     }
 
     @Override
-    public ResponseEntity<List<CategoryResponse>> getAllCategories(String keyword, Integer page, Integer size, String sort) {
-        Page<CategoryResponse> categoryPage = categoryService.searchCategories(keyword, page, size, sort);
+    public ResponseEntity<List<CategoryResponse>> getAllCategories(String keyword, Boolean active, Integer page, Integer size, String sort) {
+        Page<CategoryResponse> categoryPage = categoryService.searchCategories(keyword, active, page, size, sort);
 
         HttpHeaders headers = new HttpHeaders();
         headers.add("X-Total-Count", String.valueOf(categoryPage.getTotalElements()));
@@ -48,6 +48,7 @@ public class CategoryController implements CategoriesApi {
 
         return new ResponseEntity<>(categoryPage.getContent(), headers, HttpStatus.OK);
     }
+
 
     @Override
     public ResponseEntity<CategoryResponse> getCategoryById(UUID categoryId) {

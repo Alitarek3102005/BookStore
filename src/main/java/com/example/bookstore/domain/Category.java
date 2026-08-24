@@ -24,6 +24,9 @@ public class Category {
     @Column(length = 1000)
     private String description;
 
+    @Column(nullable = false)
+    private Boolean active = true;
+
     @OneToMany(mappedBy = "category", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Book> books;
 }

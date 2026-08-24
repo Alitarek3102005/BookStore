@@ -10,9 +10,6 @@ import com.example.bookstore.exception.CategoryNotFoundException;
 import com.example.bookstore.mapper.BookMapper;
 import com.example.bookstore.repository.BookRepository;
 import com.example.bookstore.repository.CategoryRepository;
-import com.example.bookstore.repository.OrderItemRepository;
-import com.example.bookstore.repository.CartItemRepository;
-import com.example.bookstore.repository.ReviewRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,12 +37,6 @@ class BookServiceTest {
     @Mock
     private CategoryRepository categoryRepository;
     @Mock
-    private OrderItemRepository orderItemRepository;
-    @Mock
-    private CartItemRepository cartItemRepository;
-    @Mock
-    private ReviewRepository reviewRepository;
-    @Mock
     private BookMapper bookMapper;
 
     @InjectMocks
@@ -71,26 +62,30 @@ class BookServiceTest {
         bookEntity.setId(bookId);
         bookEntity.setTitle("Dune");
         bookEntity.setCategory(categoryEntity);
+        bookEntity.setActive(true);
 
         bookRequest = new BookRequest();
         bookRequest.setTitle("Dune");
         bookRequest.setCategoryId(categoryId);
+        bookRequest.setActive(true);
 
         bookResponse = new BookResponse();
         bookResponse.setBookId(bookId);
         bookResponse.setTitle("Dune");
+        bookResponse.setActive(true);
     }
 
     @Test
     void searchBooks_ShouldReturnListOfBooks_WithPaginationAndSorting() {
         Page<Book> pagedResponse = new PageImpl<>(List.of(bookEntity));
-        when(bookRepository.searchBooks(any(), any(), any(), any(Pageable.class))).thenReturn(pagedResponse);
+        when(bookRepository.searchBooks(any(), any(), any(), any(), any(Pageable.class))).thenReturn(pagedResponse);
         when(bookMapper.toResponse(bookEntity)).thenReturn(bookResponse);
 
-        List<BookResponse> result = bookService.searchBooks("Dune", null, categoryId, 0, 10, "title,ASC");
+        List<BookResponse> result = bookService.searchBooks("Dune", null, categoryId, true, 0, 10, "title,ASC");
+
         assertEquals(1, result.size());
         assertEquals("Dune", result.get(0).getTitle());
-        verify(bookRepository).searchBooks(eq("Dune"), isNull(), eq(categoryId), any(Pageable.class));
+        verify(bookRepository).searchBooks(eq("Dune"), isNull(), eq(categoryId), eq(true), any(Pageable.class));
     }
 
     @Test
@@ -212,24 +207,20 @@ class BookServiceTest {
     }
 
     @Test
-    void deleteBook_ShouldDelete_WhenBookExists() {
-        when(bookRepository.existsById(bookId)).thenReturn(true);
-        when(orderItemRepository.existsByBook_Id(bookId)).thenReturn(false);
-
-        // Mock the cart and review deletion calls executed during deleteBook
-        doNothing().when(cartItemRepository).deleteByBook_Id(bookId);
-        doNothing().when(reviewRepository).deleteByBook_Id(bookId);
+    void deleteBook_ShouldSoftDelete_WhenBookExists() {
+        when(bookRepository.findById(bookId)).thenReturn(Optional.of(bookEntity));
 
         bookService.deleteBook(bookId);
 
-        verify(bookRepository).deleteById(bookId);
+        assertFalse(bookEntity.getActive());
+        verify(bookRepository).save(bookEntity);
     }
 
     @Test
     void deleteBook_ShouldThrowException_WhenBookDoesNotExist() {
-        when(bookRepository.existsById(bookId)).thenReturn(false);
+        when(bookRepository.findById(bookId)).thenReturn(Optional.empty());
 
         assertThrows(BookNotFoundException.class, () -> bookService.deleteBook(bookId));
-        verify(bookRepository, never()).deleteById(any());
+        verify(bookRepository, never()).save(any());
     }
 }
