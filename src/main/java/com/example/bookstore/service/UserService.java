@@ -107,17 +107,24 @@ public class UserService {
         String previousPassword = existing.getPassword();
         User userEntity = userMapper.toEntity(request);
         userEntity.setUserId(id);
+
         if (request.getPassword() != null && !request.getPassword().isEmpty()) {
             userEntity.setPassword(passwordEncoder.encode(request.getPassword()));
             keycloakAdminService.updatePassword(id, request.getPassword());
         } else {
             userEntity.setPassword(previousPassword);
         }
+
         if (!isAdmin()) {
             userEntity.setRole(previousRole);
             userEntity.setEnabled(previousEnabled);
+        } else {
+            if (previousRole != userEntity.getRole()) {
+                keycloakAdminService.updateUserRole(id, userEntity.getRole().name());
+            }
         }
-        keycloakAdminService.updateUser(id, request.getUsername(), request.getEmail());
+
+        keycloakAdminService.updateUser(id, request.getUsername(), request.getEmail(), userEntity.isEnabled());
 
         return userMapper.toResponse(userRepository.save(userEntity));
     }
@@ -144,8 +151,6 @@ public class UserService {
             }
         });
 
-        keycloakAdminService.updateUser(id, userEntity.getUsername(), userEntity.getEmail());
-
         if (userPatchRequest.getPassword() != null && !userPatchRequest.getPassword().isEmpty()) {
             userEntity.setPassword(passwordEncoder.encode(userPatchRequest.getPassword()));
             keycloakAdminService.updatePassword(id, userPatchRequest.getPassword());
@@ -154,7 +159,13 @@ public class UserService {
         if (!isAdmin()) {
             userEntity.setRole(previousRole);
             userEntity.setEnabled(previousEnabled);
+        } else {
+            if (previousRole != userEntity.getRole()) {
+                keycloakAdminService.updateUserRole(id, userEntity.getRole().name());
+            }
         }
+
+        keycloakAdminService.updateUser(id, userEntity.getUsername(), userEntity.getEmail(), userEntity.isEnabled());
 
         return userMapper.toResponse(userRepository.save(userEntity));
     }

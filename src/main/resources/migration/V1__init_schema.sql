@@ -1,14 +1,3 @@
--- ============================================================
--- V1: Initial schema
--- Mirrors the JPA entities exactly as validated by Hibernate's
--- ddl-auto=validate against the live database.
---
--- NOTE: on the current database this version is covered by the
--- Flyway baseline row (installed as type=BASELINE), so this file
--- will NOT be re-executed there - it only matters for anyone
--- spinning up a brand new, empty database from scratch.
--- ============================================================
-
 CREATE TABLE users (
                        user_id  UUID PRIMARY KEY,
                        username VARCHAR(255) NOT NULL,

@@ -97,4 +97,5 @@ public class OrderController implements OrdersApi {
     public ResponseEntity<OrderResponse> updateOrder(UUID orderId, OrderRequest orderRequest) {
         return new ResponseEntity<>(orderService.update(orderId, orderRequest), HttpStatus.OK);
     }
+
 }
