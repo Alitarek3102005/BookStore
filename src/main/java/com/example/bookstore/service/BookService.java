@@ -16,7 +16,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 
@@ -27,6 +29,7 @@ public class BookService {
     private final BookRepository bookRepository;
     private final CategoryRepository categoryRepository;
     private final BookMapper bookMapper;
+    private final S3StorageService s3StorageService;
 
     @Transactional(readOnly = true)
     public List<BookResponse> searchBooks(String title, String author, UUID categoryId, Boolean active, Integer page, Integer size, String sort) {
@@ -61,9 +64,19 @@ public class BookService {
     }
 
     @Transactional
-    public BookResponse addBook(BookRequest bookDto) {
+    public BookResponse addBook(BookRequest bookDto, MultipartFile imageFile) {
         Category category = categoryRepository.findById(bookDto.getCategoryId())
                 .orElseThrow(() -> new CategoryNotFoundException("Category not found: " + bookDto.getCategoryId()));
+
+        if (imageFile != null && !imageFile.isEmpty()) {
+            try {
+                String imageUrl = s3StorageService.uploadFile(imageFile);
+                bookDto.setImgURL(URI.create(imageUrl));
+            } catch (Exception e) {
+                e.printStackTrace();
+                throw new RuntimeException("Failed to upload image to S3: " + e.getMessage(), e);
+            }
+        }
 
         Book book = bookMapper.toEntity(bookDto);
         book.setCategory(category);

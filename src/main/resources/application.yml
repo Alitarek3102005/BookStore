@@ -1,13 +1,12 @@
-
 spring:
   application:
     name: BookStore
 
   datasource:
-    url: jdbc:postgresql://localhost:5433/bookstore_db
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/bookstore_db}
     driver-class-name: org.postgresql.Driver
-    username: admin
-    password: admin_password
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
 
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
@@ -20,19 +19,35 @@ spring:
     baseline-on-migrate: true
     baseline-version: "0"
     locations: classpath:migration
-    url: jdbc:postgresql://localhost:5433/bookstore_db
-    user: admin
-    password: admin_password
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/bookstore_db}
+    user: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
 
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://localhost:8081/realms/bookstore-realm
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8081/realms/bookstore-realm}
+
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
 
 keycloak:
   admin:
-    server-url: http://localhost:8081
+    server-url: ${KEYCLOAK_URL:http://localhost:8081}
     realm: bookstore-realm
     client-id: bookstore-admin-client
-    client-secret: ZIqNbC4yhf6lYGanV7TFHBcBfo7OYUM1
+    client-secret: ${KEYCLOAK_CLIENT_SECRET}
+
+aws:
+  s3:
+    bucket-name: virtual-bookstore-media-123
+    region: eu-north-1
+  access-key: ${AWS_ACCESS_KEY}
+  secret-key: ${AWS_SECRET_KEY}
+
+stripe:
+  api-key: ${STRIPE_API_KEY}
+  webhook-secret: ${STRIPE_WEBHOOK_SECRET}

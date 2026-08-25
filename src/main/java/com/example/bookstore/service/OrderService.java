@@ -46,7 +46,6 @@ public class OrderService {
     private final CartRepository cartRepository;
     private final OrderMapper orderMapper;
 
-    // Helper method to map frontend sort parameters to backend entity fields
     private String mapSortProperty(String frontendProperty) {
         if ("orderDate".equals(frontendProperty)) {
             return "createdAt";
@@ -258,5 +257,14 @@ public class OrderService {
         order.setUpdatedAt(LocalDateTime.now());
 
         return orderMapper.toResponse(orderRepository.save(order));
+    }
+    @Transactional
+    public void updateOrderStatus(UUID orderId, OrderStatus newStatus) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("Order not found: " + orderId));
+
+        order.setStatus(newStatus);
+        order.setUpdatedAt(LocalDateTime.now());
+        orderRepository.save(order);
     }
 }

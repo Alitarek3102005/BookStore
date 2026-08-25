@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Bookstore REST API
-  description: API contract for the Spring Boot Bookstore System, matching the ERD and pagination/search features. Now includes soft delete functionality.
+  description: API contract for the Spring Boot Bookstore System, matching the ERD and pagination/search features. Now includes soft delete functionality, AWS S3 integration, and Stripe payment flows.
   version: 1.0.0
 servers:
   - url: http://localhost:8080
@@ -15,6 +15,8 @@ tags:
     description: User registration and management
   - name: Orders
     description: Order processing and checkout
+  - name: Payments
+    description: Stripe payment integration without database entities
   - name: OrderItems
     description: Individual line items within an order
   - name: Books
@@ -523,6 +525,64 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /api/orders/{orderId}/checkout-session:
+    parameters:
+      - name: orderId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      tags: [Payments]
+      summary: Create a Stripe checkout session for an order
+      operationId: createCheckoutSession
+      responses:
+        '200':
+          description: Stripe checkout session URL generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutSessionResponse'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error communicating with Stripe
+
+  /api/webhook/stripe:
+    post:
+      tags: [Payments]
+      summary: Stripe Webhook Listener
+      description: Public endpoint for Stripe to send asynchronous payment success events.
+      operationId: handleStripeWebhook
+      security: []
+      parameters:
+        - name: Stripe-Signature
+          in: header
+          required: true
+          description: Signature header sent by Stripe for payload verification
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: string
+      responses:
+        '200':
+          description: Webhook processed successfully
+          content:
+            text/plain:
+              schema:
+                type: string
+        '400':
+          description: Invalid webhook signature or payload
+
   /api/users/{userId}/orders:
     parameters:
       - name: userId
@@ -751,14 +811,21 @@ paths:
                   $ref: '#/components/schemas/BookResponse'
     post:
       tags: [Books]
-      summary: Add a new book
+      summary: Add a new book with an optional cover image
       operationId: createBook
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
-              $ref: '#/components/schemas/BookRequest'
+              type: object
+              properties:
+                book:
+                  $ref: '#/components/schemas/BookRequest'
+                image:
+                  type: string
+                  format: binary
+                  description: Optional cover image to upload to S3
       responses:
         '201':
           description: Book created successfully
@@ -1577,3 +1644,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ErrorItem'
+
+    CheckoutSessionResponse:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          description: The URL to redirect the user to the Stripe hosted payment page.

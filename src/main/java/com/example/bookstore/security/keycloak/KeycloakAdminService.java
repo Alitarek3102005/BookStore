@@ -8,6 +8,7 @@ import org.keycloak.OAuth2Constants;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.KeycloakBuilder;
 import org.keycloak.admin.client.resource.RealmResource;
+import org.keycloak.admin.client.resource.UserResource;
 import org.keycloak.admin.client.resource.UsersResource;
 import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.RoleRepresentation;
@@ -97,12 +98,23 @@ public class KeycloakAdminService {
     public void deleteUser(UUID keycloakUserId) {
         keycloakAdminClient.realm(realm).users().get(keycloakUserId.toString()).remove();
     }
-    public void updateUser(UUID userId, String newUsername, String newEmail) {
-        UserRepresentation user = new UserRepresentation();
+
+    public void updateUser(UUID userId, String newUsername, String newEmail, boolean enabled) {
+        UserResource userResource = keycloakAdminClient.realm(realm).users().get(userId.toString());
+
+        UserRepresentation user = userResource.toRepresentation();
+
         user.setUsername(newUsername);
         user.setEmail(newEmail);
+        user.setEnabled(enabled);
 
-        keycloakAdminClient.realm(realm).users().get(userId.toString()).update(user);
+        try {
+            userResource.update(user);
+        } catch (jakarta.ws.rs.WebApplicationException e) {
+            String errorBody = e.getResponse().readEntity(String.class);
+            System.err.println("Keycloak Update Rejected (HTTP " + e.getResponse().getStatus() + "): " + errorBody);
+            throw new RuntimeException("Keycloak update failed: " + errorBody, e);
+        }
     }
 
     public void updatePassword(UUID userId, String newPassword) {
@@ -112,5 +124,23 @@ public class KeycloakAdminService {
         credential.setValue(newPassword);
 
         keycloakAdminClient.realm(realm).users().get(userId.toString()).resetPassword(credential);
+    }
+
+    public void updateUserRole(UUID userId, String newRoleName) {
+        RealmResource realmResource = keycloakAdminClient.realm(realm);
+        UserResource userResource = realmResource.users().get(userId.toString());
+
+        List<RoleRepresentation> currentRoles = userResource.roles().realmLevel().listAll();
+
+        List<RoleRepresentation> rolesToRemove = currentRoles.stream()
+                .filter(role -> role.getName().equals("CUSTOMER") || role.getName().equals("ADMIN"))
+                .toList();
+
+        if (!rolesToRemove.isEmpty()) {
+            userResource.roles().realmLevel().remove(rolesToRemove);
+        }
+
+        RoleRepresentation newRole = realmResource.roles().get(newRoleName).toRepresentation();
+        userResource.roles().realmLevel().add(List.of(newRole));
     }
 }

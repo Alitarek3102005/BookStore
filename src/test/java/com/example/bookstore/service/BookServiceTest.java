@@ -19,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Optional;
@@ -38,6 +39,8 @@ class BookServiceTest {
     private CategoryRepository categoryRepository;
     @Mock
     private BookMapper bookMapper;
+    @Mock
+    private S3StorageService s3StorageService;
 
     @InjectMocks
     private BookService bookService;
@@ -127,16 +130,35 @@ class BookServiceTest {
     }
 
     @Test
-    void addBook_ShouldSaveAndReturnBook_WhenCategoryExists() {
+    void addBook_ShouldSaveAndReturnBook_WhenNoImageProvided() {
         when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(categoryEntity));
         when(bookMapper.toEntity(bookRequest)).thenReturn(bookEntity);
         when(bookRepository.save(any(Book.class))).thenReturn(bookEntity);
         when(bookMapper.toResponse(bookEntity)).thenReturn(bookResponse);
 
-        BookResponse result = bookService.addBook(bookRequest);
+        BookResponse result = bookService.addBook(bookRequest, null);
 
         assertNotNull(result);
         verify(categoryRepository).findById(categoryId);
+        verify(bookRepository).save(bookEntity);
+        verifyNoInteractions(s3StorageService);
+    }
+
+    @Test
+    void addBook_ShouldUploadToS3AndSave_WhenImageProvided() throws Exception {
+        MultipartFile mockFile = mock(MultipartFile.class);
+        when(mockFile.isEmpty()).thenReturn(false);
+        when(s3StorageService.uploadFile(mockFile)).thenReturn("https://s3.url/cover.jpg");
+
+        when(categoryRepository.findById(categoryId)).thenReturn(Optional.of(categoryEntity));
+        when(bookMapper.toEntity(bookRequest)).thenReturn(bookEntity);
+        when(bookRepository.save(any(Book.class))).thenReturn(bookEntity);
+        when(bookMapper.toResponse(bookEntity)).thenReturn(bookResponse);
+
+        BookResponse result = bookService.addBook(bookRequest, mockFile);
+
+        assertNotNull(result);
+        verify(s3StorageService).uploadFile(mockFile);
         verify(bookRepository).save(bookEntity);
     }
 
@@ -144,7 +166,7 @@ class BookServiceTest {
     void addBook_ShouldThrowException_WhenCategoryDoesNotExist() {
         when(categoryRepository.findById(categoryId)).thenReturn(Optional.empty());
 
-        assertThrows(CategoryNotFoundException.class, () -> bookService.addBook(bookRequest));
+        assertThrows(CategoryNotFoundException.class, () -> bookService.addBook(bookRequest, null));
         verify(bookRepository, never()).save(any());
     }
 

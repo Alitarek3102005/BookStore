@@ -121,12 +121,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 "E400_KEYCLOAK_CREATION_FAILED", request);
     }
 
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<Object> handleGenericException(Exception e, WebRequest request) {
-        return createErrorResponse(e, HttpStatus.INTERNAL_SERVER_ERROR,
-                "An unexpected system error occurred.",
-                "E500_INTERNAL_ERROR", request);
-    }
     @ExceptionHandler(CartNotFoundException.class)
     public ResponseEntity<Object> handleCartNotFoundException(CartNotFoundException e, WebRequest request) {
         return createErrorResponse(e, HttpStatus.NOT_FOUND,
@@ -153,5 +147,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 "The review could not be found.",
                 "E404_REVIEW_NOT_FOUND", request
         );
+    }
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Object> handleGenericException(Exception e, WebRequest request) {
+        return createErrorResponse(e, HttpStatus.INTERNAL_SERVER_ERROR,
+                "An unexpected system error occurred.",
+                "E500_INTERNAL_ERROR", request);
     }
 }

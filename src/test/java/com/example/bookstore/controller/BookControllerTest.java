@@ -8,12 +8,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-
 import org.springframework.boot.security.autoconfigure.SecurityAutoConfiguration;
 import org.springframework.boot.security.oauth2.server.resource.autoconfigure.OAuth2ResourceServerAutoConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -75,16 +75,31 @@ class BookControllerTest {
 
     @Test
     void createBook_ShouldReturn201Created() throws Exception {
-        when(bookService.addBook(any(BookRequest.class))).thenReturn(bookResponse);
+        when(bookService.addBook(any(BookRequest.class), any())).thenReturn(bookResponse);
 
-        mockMvc.perform(post("/api/books")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(bookRequest)))
+        MockMultipartFile bookPart = new MockMultipartFile(
+                "book",
+                "",
+                MediaType.APPLICATION_JSON_VALUE,
+                objectMapper.writeValueAsBytes(bookRequest)
+        );
+
+        MockMultipartFile imagePart = new MockMultipartFile(
+                "image",
+                "cover.jpg",
+                MediaType.IMAGE_JPEG_VALUE,
+                "dummy-image-content".getBytes()
+        );
+
+        mockMvc.perform(multipart("/api/books")
+                        .file(bookPart)
+                        .file(imagePart)
+                        .contentType(MediaType.MULTIPART_FORM_DATA))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.bookId").value(bookId.toString()))
                 .andExpect(jsonPath("$.title").value("Dune"));
 
-        verify(bookService).addBook(any(BookRequest.class));
+        verify(bookService).addBook(any(BookRequest.class), any());
     }
 
     @Test
